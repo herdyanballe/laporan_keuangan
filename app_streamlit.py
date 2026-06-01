@@ -22,57 +22,21 @@ import tempfile
 st.set_page_config(
     page_title="Kas Narogong",
     page_icon="💰",
-    layout="centered",  # Gunakan centered untuk mobile agar lebih rapi
-    initial_sidebar_state="collapsed"  # Sidebar collapsed di mobile
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-# CSS minimal untuk mobile (tanpa efek berat)
+# CSS minimal untuk mobile
 st.markdown("""
 <style>
-    /* Reset margin padding */
-    .main > div {
-        padding: 0.5rem !important;
-    }
-    
-    /* Membuat card lebih simple */
-    .metric-card {
-        background-color: #f0f2f6;
-        border-radius: 10px;
-        padding: 10px;
-        text-align: center;
-        margin: 5px 0;
-    }
-    
-    /* Tombol responsif */
-    .stButton > button {
-        width: 100%;
-        border-radius: 8px;
-    }
-    
-    /* Ukuran font lebih kecil di mobile */
+    .main > div { padding: 0.5rem !important; }
+    .stButton > button { width: 100%; border-radius: 8px; }
     @media (max-width: 768px) {
-        .stMarkdown h1 {
-            font-size: 22px !important;
-        }
-        .stMarkdown h2 {
-            font-size: 18px !important;
-        }
-        .stMarkdown h3 {
-            font-size: 16px !important;
-        }
-        .stMetric label {
-            font-size: 12px !important;
-        }
-        .stMetric value {
-            font-size: 18px !important;
-        }
+        .stMarkdown h1 { font-size: 22px !important; }
+        .stMarkdown h2 { font-size: 18px !important; }
+        .stMarkdown h3 { font-size: 16px !important; }
     }
-    
-    /* Hilangkan padding berlebih */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 0rem !important;
-    }
+    .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,7 +47,7 @@ CONFIG_FILE = "config.json"
 BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni",
             "Juli","Agustus","September","Oktober","November","Desember"]
 
-# Cache data loading agar tidak reload terus
+# Cache data loading
 @st.cache_data(ttl=60)
 def load_data_cached():
     if os.path.exists(DATA_FILE):
@@ -97,7 +61,6 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    # Clear cache setelah save
     st.cache_data.clear()
 
 def load_config():
@@ -178,27 +141,191 @@ def build_periode_label(rows, bulan_filter, tahun_filter):
         return f"Tahun {tahun_filter}"
     return "Semua Periode"
 
-#hapus mulai sini
+# ==================== FUNGSI EXPORT PDF ====================
 
-# ── Export PDF (Potrait) dengan Logo ──────────────────────────────────────────
-
-# Inisialisasi session state (minimal)
-if 'data' not in st.session_state:
-    st.session_state.data = load_data()
-if 'config' not in st.session_state:
-    st.session_state.config = load_config()
+def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
+    """Export ke PDF dengan orientasi Potrait dan logo"""
+    
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    temp_file.close()
+    
+    nama_kel = config.get("nama_kelompok", "Kelompok Narogong")
+    nama_ger = config.get("nama_gereja", "GKJ")
+    judul_periode = build_periode_label(rows, bulan_filter, tahun_filter)
+    
+    doc = SimpleDocTemplate(temp_file.name, pagesize=A4,
+                             leftMargin=1.5*cm, rightMargin=1.5*cm,
+                             topMargin=1.5*cm, bottomMargin=1.5*cm)
+    styles = getSampleStyleSheet()
+    navy   = colors.HexColor("#1F4E79")
+    silver = colors.HexColor("#EEF4FB")
+    white  = colors.white
+    
+    style_title = ParagraphStyle("title", fontName="Helvetica-Bold",
+                                  fontSize=14, textColor=navy, alignment=TA_CENTER,
+                                  spaceAfter=4)
+    style_sub   = ParagraphStyle("sub", fontName="Helvetica",
+                                  fontSize=10, textColor=colors.grey,
+                                  alignment=TA_CENTER, spaceAfter=2)
+    style_sub2   = ParagraphStyle("sub2", fontName="Helvetica",
+                                  fontSize=9, textColor=colors.grey,
+                                  alignment=TA_CENTER, spaceAfter=2)
+    style_cell  = ParagraphStyle("cell", fontName="Helvetica", fontSize=8,
+                                  leading=10)
+    
+    story = []
+    
+    # ── HEADER DENGAN LOGO ──
+    logo_path = config.get("logo_path", "")
+    
+    # Cek beberapa kemungkinan lokasi logo
+    possible_logo_paths = [
+        logo_path,
+        "logo.png",
+        "logo.jpg",
+        "logo.jpeg",
+        os.path.join(os.path.dirname(__file__), "logo.png"),
+        os.path.join(os.path.dirname(__file__), "logo.jpg"),
+    ]
+    
+    logo_found = None
+    for path in possible_logo_paths:
+        if path and os.path.exists(path):
+            logo_found = path
+            break
+    
+    if logo_found and os.path.exists(logo_found):
+        try:
+            logo = RLImage(logo_found, width=2.2*cm, height=2.2*cm, kind='proportional')
+            
+            header_data = [[
+                logo,
+                [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
+                 Paragraph(judul_periode, style_sub),
+                 Paragraph(nama_ger, style_sub2)]
+            ]]
+            
+            header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
+            header_tbl.setStyle(TableStyle([
+                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+                ("ALIGN", (0,0), (0,0), "CENTER"),
+                ("ALIGN", (1,0), (1,0), "CENTER"),
+                ("LEFTPADDING", (0,0), (-1,-1), 0),
+                ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                ("TOPPADDING", (0,0), (-1,-1), 0),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+            ]))
+            story.append(header_tbl)
+            
+        except Exception as e:
+            story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+            story.append(Paragraph(judul_periode, style_sub))
+            story.append(Paragraph(nama_ger, style_sub2))
+    else:
+        story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+        story.append(Paragraph(judul_periode, style_sub))
+        story.append(Paragraph(nama_ger, style_sub2))
+    
+    story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
+    
+    # ── TABLE DATA ──
+    table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
+    
+    if bulan_filter or tahun_filter:
+        all_before = get_data_before_period(data, bulan_filter, tahun_filter)
+        saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
+    else:
+        saldo = 0
+    
+    for idx, row in enumerate(rows, 1):
+        saldo += row.get("masuk", 0) - row.get("keluar", 0)
+        ket = row["keterangan"]
+        if len(ket) > 55:
+            ket = ket[:52] + "..."
+        
+        table_data.append([
+            str(idx),
+            row["tanggal"],
+            Paragraph(ket, style_cell),
+            fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
+            fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
+            fmt_rp(saldo),
+        ])
+    
+    total_masuk = sum(r.get("masuk", 0) for r in rows)
+    total_keluar = sum(r.get("keluar", 0) for r in rows)
+    
+    if bulan_filter or tahun_filter:
+        all_before = get_data_before_period(data, bulan_filter, tahun_filter)
+        saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
+        table_data.append(["", "", "", "", "", ""])
+        table_data.append(["", "", f"SALDO AWAL: {fmt_rp(saldo_awal)}", "", "", ""])
+        table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
+    else:
+        table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
+    
+    col_w = [0.7*cm, 1.8*cm, 6.8*cm, 2.3*cm, 2.3*cm, 2.5*cm]
+    
+    tbl = Table(table_data, colWidths=col_w, repeatRows=1)
+    n = len(table_data)
+    
+    tbl_style = TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), navy),
+        ("TEXTCOLOR", (0,0), (-1,0), white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,0), 8),
+        ("ALIGN", (0,0), (-1,0), "CENTER"),
+        ("VALIGN", (0,0), (-1,0), "MIDDLE"),
+        ("FONTNAME", (0,1), (-1,n-2), "Helvetica"),
+        ("FONTSIZE", (0,1), (-1,n-2), 7),
+        ("VALIGN", (0,1), (-1,-1), "MIDDLE"),
+        ("ALIGN", (0,1), (1,-1), "CENTER"),
+        ("ALIGN", (3,1), (5,-1), "RIGHT"),
+        *[("BACKGROUND", (0,i), (-1,i), silver) for i in range(1, n-1) if i%2 == 0],
+        ("BACKGROUND", (0,n-1), (-1,n-1), navy),
+        ("TEXTCOLOR", (0,n-1), (-1,n-1), white),
+        ("FONTNAME", (0,n-1), (-1,n-1), "Helvetica-Bold"),
+        ("FONTSIZE", (0,n-1), (-1,n-1), 8),
+        ("ALIGN", (2,n-1), (2,n-1), "CENTER"),
+        ("ALIGN", (3,n-1), (5,n-1), "RIGHT"),
+        ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#CCCCCC")),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 3),
+        ("RIGHTPADDING", (0,0), (-1,-1), 3),
+    ])
+    
+    if bulan_filter or tahun_filter and len(table_data) > 2:
+        tbl_style.add("BACKGROUND", (0, n-2), (-1, n-2), colors.HexColor("#E8F0FE"))
+        tbl_style.add("FONTNAME", (0, n-2), (-1, n-2), "Helvetica-Bold")
+        tbl_style.add("FONTSIZE", (0, n-2), (-1, n-2), 7)
+        tbl_style.add("ALIGN", (2, n-2), (2, n-2), "LEFT")
+    
+    tbl.setStyle(tbl_style)
+    story.append(tbl)
+    
+    # ── FOOTER ──
+    story.append(Spacer(1, 0.5*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
+    tgl_cetak = datetime.now().strftime("%d %B %Y %H:%M")
+    story.append(Paragraph(f"Dicetak: {tgl_cetak}", style_sub))
+    
+    doc.build(story)
+    
+    with open(temp_file.name, "rb") as f:
+        pdf_data = f.read()
+    
+    os.unlink(temp_file.name)
+    return pdf_data
 
 # ==================== UI COMPONENTS ====================
 
 def show_dashboard():
-    """Dashboard sederhana untuk mobile"""
-    
     today = date.today().strftime("%d/%m/%Y")
     saldo = get_saldo_hari_ini(st.session_state.data)
     total_masuk = sum(r.get("masuk", 0) for r in st.session_state.data)
     total_keluar = sum(r.get("keluar", 0) for r in st.session_state.data)
     
-    # 2 baris metric untuk mobile
     col1, col2 = st.columns(2)
     with col1:
         st.metric("📅 Hari Ini", today)
@@ -212,7 +339,6 @@ def show_dashboard():
         st.metric("📉 Keluar", fmt_rp(total_keluar))
 
 def show_transaksi_form():
-    """Form input sederhana"""
     with st.expander("➕ Tambah Transaksi", expanded=False):
         tgl = st.date_input("Tanggal", value=date.today(), format="DD/MM/YYYY")
         keterangan = st.text_input("Keterangan", placeholder="Contoh: Iuran bulanan")
@@ -242,14 +368,12 @@ def show_transaksi_form():
                 st.rerun()
 
 def show_data_table():
-    """Tampilan data transaksi"""
     st.subheader("📋 Transaksi")
     
     if not st.session_state.data:
         st.info("Belum ada data")
         return
     
-    # Filter
     col_f1, col_f2 = st.columns(2)
     with col_f1:
         bulan_filter = st.selectbox("Bulan", ["Semua"] + BULAN_ID, key="bulan_filter")
@@ -264,22 +388,23 @@ def show_data_table():
     rows = filter_data(st.session_state.data, bulan, tahun)
     
     if rows:
-        # Tombol export
         col_pdf, _ = st.columns([1, 3])
         with col_pdf:
             if st.button("📄 Export PDF", use_container_width=True):
-                with st.spinner("Loading..."):
-                    pdf = export_pdf(st.session_state.data, rows, st.session_state.config, bulan, tahun)
-                    st.download_button("📥 Download", pdf, f"laporan_{bulan_filter}_{tahun_filter}.pdf", "application/pdf")
+                with st.spinner("Membuat PDF..."):
+                    pdf_data = export_pdf(st.session_state.data, rows, st.session_state.config, bulan, tahun)
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=pdf_data,
+                        file_name=f"laporan_{bulan_filter}_{tahun_filter}.pdf",
+                        mime="application/pdf"
+                    )
         
-        # Tampilan ringkas untuk mobile (gunakan dataframe dengan height terbatas)
         df_display = []
         saldo = 0
         if bulan or tahun:
             saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in get_data_before_period(st.session_state.data, bulan, tahun))
             saldo = saldo_awal
-        else:
-            saldo_awal = 0
         
         for i, row in enumerate(rows, 1):
             saldo += row.get("masuk", 0) - row.get("keluar", 0)
@@ -293,7 +418,6 @@ def show_data_table():
         
         st.dataframe(pd.DataFrame(df_display), use_container_width=True, height=400)
         
-        # Ringkasan
         total_masuk = sum(r.get("masuk", 0) for r in rows)
         total_keluar = sum(r.get("keluar", 0) for r in rows)
         
@@ -307,7 +431,6 @@ def show_data_table():
             st.metric("Saldo Akhir", fmt_rp(saldo))
 
 def show_charts():
-    """Grafik sederhana"""
     st.subheader("📊 Grafik")
     
     if not st.session_state.data:
@@ -330,24 +453,40 @@ def show_charts():
         st.plotly_chart(fig, use_container_width=True)
 
 def show_settings():
-    """Pengaturan sederhana"""
     st.subheader("⚙️ Pengaturan")
     
     with st.form("settings"):
         nama = st.text_input("Nama Kelompok", value=st.session_state.config.get("nama_kelompok", "Kelompok Narogong"))
+        gereja = st.text_input("Nama Gereja", value=st.session_state.config.get("nama_gereja", "GKJ"))
+        
+        uploaded_logo = st.file_uploader("Upload Logo", type=['png', 'jpg', 'jpeg'])
+        if uploaded_logo:
+            st.image(uploaded_logo, width=80)
+        
         if st.form_submit_button("💾 Simpan", use_container_width=True):
             st.session_state.config["nama_kelompok"] = nama
+            st.session_state.config["nama_gereja"] = gereja
+            if uploaded_logo:
+                with open("logo.png", "wb") as f:
+                    f.write(uploaded_logo.getbuffer())
+                st.session_state.config["logo_path"] = "logo.png"
             save_config(st.session_state.config)
             st.success("Tersimpan!")
+            st.rerun()
+
+# ==================== INISIALISASI ====================
+
+if 'data' not in st.session_state:
+    st.session_state.data = load_data()
+if 'config' not in st.session_state:
+    st.session_state.config = load_config()
 
 # ==================== MAIN ====================
 
 def main():
-    # Header sederhana
     st.markdown(f"# 💰 {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}")
     st.caption(f"{st.session_state.config.get('nama_gereja', 'GKJ')}")
     
-    # Pilihan menu menggunakan selectbox (lebih ringan untuk mobile)
     menu = st.selectbox(
         "Menu",
         ["🏠 Dashboard", "➕ Input", "📋 Data", "📊 Grafik", "⚙️ Setting"]
@@ -366,7 +505,6 @@ def main():
     elif menu == "⚙️ Setting":
         show_settings()
     
-    # Footer
     st.markdown("---")
     st.caption(f"Total: {len(st.session_state.data)} transaksi")
 
