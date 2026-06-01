@@ -47,7 +47,7 @@ CONFIG_FILE = "config.json"
 BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni",
             "Juli","Agustus","September","Oktober","November","Desember"]
 
-# ==================== FUNGSI DASAR (DIDEKLARASIKAN PERTAMA) ====================
+# ==================== FUNGSI DASAR ====================
 
 def fmt_rp(val):
     try:
@@ -139,24 +139,11 @@ def build_periode_label(rows, bulan_filter, tahun_filter):
         return f"Bulan {BULAN_ID[bulan_int-1]} {tahun_filter}"
     if tahun_filter:
         return f"Tahun {tahun_filter}"
-    if rows:
-        try:
-            tanggals = [parse_tgl(r["tanggal"]) for r in rows if r.get("tanggal")]
-            tanggals = [d for d in tanggals if d]
-            if tanggals:
-                mn, mx = min(tanggals), max(tanggals)
-                if mn.year == mx.year and mn.month == mx.month:
-                    return f"Bulan {BULAN_ID[mn.month-1]} {mn.year}"
-                return f"{BULAN_ID[mn.month-1]} {mn.year} s.d. {BULAN_ID[mx.month-1]} {mx.year}"
-        except:
-            pass
     return "Semua Periode"
 
 # ==================== FUNGSI EXPORT PDF ====================
 
 def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
-    """Export ke PDF dengan orientasi Potrait dan logo"""
-    
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
     temp_file.close()
     
@@ -182,48 +169,29 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     
     story = []
     
-    # HEADER DENGAN LOGO
+    # Header dengan logo
     logo_path = config.get("logo_path", "")
-    
-    possible_logo_paths = [
-        logo_path,
-        "logo.png",
-        "logo.jpg",
-        "logo.jpeg",
-        os.path.join(os.path.dirname(__file__), "logo.png"),
-        os.path.join(os.path.dirname(__file__), "logo.jpg"),
-    ]
-    
+    possible_logo_paths = [logo_path, "logo.png", "logo.jpg", "logo.jpeg"]
     logo_found = None
     for path in possible_logo_paths:
         if path and os.path.exists(path):
             logo_found = path
             break
     
-    if logo_found and os.path.exists(logo_found):
+    if logo_found:
         try:
             logo = RLImage(logo_found, width=2.2*cm, height=2.2*cm, kind='proportional')
-            
-            header_data = [[
-                logo,
-                [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
-                 Paragraph(judul_periode, style_sub),
-                 Paragraph("GKJ BEKASI", style_sub)]
-            ]]
-            
+            header_data = [[logo, [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
+                                    Paragraph(judul_periode, style_sub),
+                                    Paragraph("GKJ BEKASI", style_sub)]]]
             header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
-            header_tbl.setStyle(TableStyle([
-                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-                ("ALIGN", (0,0), (0,0), "CENTER"),
-                ("ALIGN", (1,0), (1,0), "CENTER"),
-                ("LEFTPADDING", (0,0), (-1,-1), 0),
-                ("RIGHTPADDING", (0,0), (-1,-1), 0),
-                ("TOPPADDING", (0,0), (-1,-1), 0),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-            ]))
+            header_tbl.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+                                            ("ALIGN", (0,0), (0,0), "CENTER"),
+                                            ("ALIGN", (1,0), (1,0), "CENTER"),
+                                            ("LEFTPADDING", (0,0), (-1,-1), 0),
+                                            ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
             story.append(header_tbl)
-            
-        except Exception as e:
+        except:
             story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
             story.append(Paragraph(judul_periode, style_sub))
             story.append(Paragraph("GKJ BEKASI", style_sub))
@@ -234,7 +202,7 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     
     story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
     
-    # TABLE DATA
+    # Table data
     table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
     
     if bulan_filter or tahun_filter:
@@ -248,15 +216,10 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
         ket = row.get("keterangan", "")
         if len(ket) > 55:
             ket = ket[:52] + "..."
-        
-        table_data.append([
-            str(idx),
-            row.get("tanggal", ""),
-            Paragraph(ket, style_cell),
-            fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
-            fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
-            fmt_rp(saldo),
-        ])
+        table_data.append([str(idx), row.get("tanggal", ""), Paragraph(ket, style_cell),
+                          fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
+                          fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
+                          fmt_rp(saldo)])
     
     total_masuk = sum(r.get("masuk", 0) for r in rows)
     total_keluar = sum(r.get("keluar", 0) for r in rows)
@@ -271,46 +234,29 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
         table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
     
     col_w = [0.7*cm, 1.8*cm, 6.8*cm, 2.3*cm, 2.3*cm, 2.5*cm]
-    
     tbl = Table(table_data, colWidths=col_w, repeatRows=1)
     n = len(table_data)
     
     tbl_style = TableStyle([
-        ("BACKGROUND", (0,0), (-1,0), navy),
-        ("TEXTCOLOR", (0,0), (-1,0), white),
-        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-        ("FONTSIZE", (0,0), (-1,0), 8),
-        ("ALIGN", (0,0), (-1,0), "CENTER"),
-        ("VALIGN", (0,0), (-1,0), "MIDDLE"),
-        ("FONTNAME", (0,1), (-1,n-2), "Helvetica"),
-        ("FONTSIZE", (0,1), (-1,n-2), 7),
-        ("VALIGN", (0,1), (-1,-1), "MIDDLE"),
-        ("ALIGN", (0,1), (1,-1), "CENTER"),
+        ("BACKGROUND", (0,0), (-1,0), navy), ("TEXTCOLOR", (0,0), (-1,0), white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"), ("FONTSIZE", (0,0), (-1,0), 8),
+        ("ALIGN", (0,0), (-1,0), "CENTER"), ("VALIGN", (0,0), (-1,0), "MIDDLE"),
+        ("FONTNAME", (0,1), (-1,n-2), "Helvetica"), ("FONTSIZE", (0,1), (-1,n-2), 7),
+        ("VALIGN", (0,1), (-1,-1), "MIDDLE"), ("ALIGN", (0,1), (1,-1), "CENTER"),
         ("ALIGN", (3,1), (5,-1), "RIGHT"),
         *[("BACKGROUND", (0,i), (-1,i), silver) for i in range(1, n-1) if i%2 == 0],
-        ("BACKGROUND", (0,n-1), (-1,n-1), navy),
-        ("TEXTCOLOR", (0,n-1), (-1,n-1), white),
-        ("FONTNAME", (0,n-1), (-1,n-1), "Helvetica-Bold"),
-        ("FONTSIZE", (0,n-1), (-1,n-1), 8),
-        ("ALIGN", (2,n-1), (2,n-1), "CENTER"),
-        ("ALIGN", (3,n-1), (5,n-1), "RIGHT"),
+        ("BACKGROUND", (0,n-1), (-1,n-1), navy), ("TEXTCOLOR", (0,n-1), (-1,n-1), white),
+        ("FONTNAME", (0,n-1), (-1,n-1), "Helvetica-Bold"), ("FONTSIZE", (0,n-1), (-1,n-1), 8),
+        ("ALIGN", (2,n-1), (2,n-1), "CENTER"), ("ALIGN", (3,n-1), (5,n-1), "RIGHT"),
         ("GRID", (0,0), (-1,-1), 0.3, colors.HexColor("#CCCCCC")),
-        ("TOPPADDING", (0,0), (-1,-1), 3),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-        ("LEFTPADDING", (0,0), (-1,-1), 3),
-        ("RIGHTPADDING", (0,0), (-1,-1), 3),
+        ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3),
     ])
-    
-    if (bulan_filter or tahun_filter) and len(table_data) > 2:
-        tbl_style.add("BACKGROUND", (0, n-2), (-1, n-2), colors.HexColor("#E8F0FE"))
-        tbl_style.add("FONTNAME", (0, n-2), (-1, n-2), "Helvetica-Bold")
-        tbl_style.add("FONTSIZE", (0, n-2), (-1, n-2), 7)
-        tbl_style.add("ALIGN", (2, n-2), (2, n-2), "LEFT")
     
     tbl.setStyle(tbl_style)
     story.append(tbl)
     
-    # FOOTER
+    # Footer
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     tgl_cetak = datetime.now().strftime("%d %B %Y %H:%M")
@@ -320,29 +266,60 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     
     with open(temp_file.name, "rb") as f:
         pdf_data = f.read()
-    
     os.unlink(temp_file.name)
     return pdf_data
 
 # ==================== UI COMPONENTS ====================
 
 def show_dashboard():
-    today = date.today().strftime("%d/%m/%Y")
+    today = date.today()
+    today_str = today.strftime("%d/%m/%Y")
     saldo = get_saldo_hari_ini(st.session_state.data)
     total_masuk = sum(r.get("masuk", 0) for r in st.session_state.data)
     total_keluar = sum(r.get("keluar", 0) for r in st.session_state.data)
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("📅 Hari Ini", today)
+        st.metric("📅 Hari Ini", today_str)
     with col2:
         st.metric("💰 Saldo", fmt_rp(saldo))
     
     col3, col4 = st.columns(2)
     with col3:
-        st.metric("📈 Masuk", fmt_rp(total_masuk))
+        st.metric("📈 Total Masuk", fmt_rp(total_masuk))
     with col4:
-        st.metric("📉 Keluar", fmt_rp(total_keluar))
+        st.metric("📉 Total Keluar", fmt_rp(total_keluar))
+    
+    st.markdown("---")
+    st.markdown(f"### 📊 Grafik {today.year}")
+    
+    current_year = today.year
+    year_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and parse_tgl(r.get("tanggal", "")).year == current_year]
+    
+    if year_data:
+        df = pd.DataFrame(year_data)
+        df['tanggal_dt'] = df['tanggal'].apply(parse_tgl)
+        df['bulan_num'] = df['tanggal_dt'].apply(lambda x: x.month if x else None)
+        df['bulan'] = df['bulan_num'].apply(lambda x: BULAN_ID[x-1] if x else None)
+        df = df.dropna(subset=['bulan'])
+        
+        bulan_order = BULAN_ID.copy()
+        monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
+        monthly['bulan_num'] = monthly['bulan'].apply(lambda x: bulan_order.index(x) if x in bulan_order else 0)
+        monthly = monthly.sort_values('bulan_num').drop('bulan_num', axis=1)
+        
+        if not monthly.empty:
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='Masuk', x=monthly['bulan'], y=monthly['masuk'], marker_color='#2E7D32'))
+            fig.add_trace(go.Bar(name='Keluar', x=monthly['bulan'], y=monthly['keluar'], marker_color='#C62828'))
+            fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20), template="plotly_white")
+            fig.update_yaxis(tickformat=',.0f')
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(f"Belum ada data untuk tahun {current_year}")
+    else:
+        st.info(f"Belum ada data untuk tahun {current_year}")
 
 def show_transaksi_form():
     with st.expander("➕ Tambah Transaksi", expanded=False):
@@ -440,26 +417,86 @@ def show_data_table():
             st.metric("Saldo Akhir", fmt_rp(saldo))
 
 def show_charts():
-    st.subheader("📊 Grafik")
+    st.subheader("📊 Grafik Keuangan")
     
     if not st.session_state.data:
-        st.info("Belum ada data")
+        st.info("Belum ada data untuk ditampilkan.")
         return
     
-    df = pd.DataFrame(st.session_state.data)
+    # Ambil daftar tahun yang tersedia
+    available_years = []
+    for r in st.session_state.data:
+        tgl = parse_tgl(r.get("tanggal", ""))
+        if tgl:
+            year = tgl.year
+            if year not in available_years:
+                available_years.append(year)
+    available_years.sort(reverse=True)
+    
+    if not available_years:
+        available_years = [date.today().year]
+    
+    current_year = date.today().year
+    if current_year not in available_years:
+        current_year = available_years[0]
+    
+    col_year, _ = st.columns([1, 3])
+    with col_year:
+        selected_year = st.selectbox(
+            "📅 Pilih Tahun", 
+            available_years, 
+            index=available_years.index(current_year) if current_year in available_years else 0,
+            key="chart_year"
+        )
+    
+    # Filter data berdasarkan tahun
+    filtered_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and parse_tgl(r.get("tanggal", "")).year == selected_year]
+    
+    if not filtered_data:
+        st.info(f"Tidak ada data untuk tahun {selected_year}")
+        return
+    
+    df = pd.DataFrame(filtered_data)
     df['tanggal_dt'] = df['tanggal'].apply(parse_tgl)
-    df['bulan'] = df['tanggal_dt'].apply(lambda x: f"{BULAN_ID[x.month-1]}" if x else None)
+    df['bulan_num'] = df['tanggal_dt'].apply(lambda x: x.month if x else None)
+    df['bulan'] = df['bulan_num'].apply(lambda x: BULAN_ID[x-1] if x else None)
     df = df.dropna(subset=['bulan'])
     
+    bulan_order = BULAN_ID.copy()
     monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
+    monthly['bulan_num'] = monthly['bulan'].apply(lambda x: bulan_order.index(x) if x in bulan_order else 0)
+    monthly = monthly.sort_values('bulan_num').drop('bulan_num', axis=1)
     
-    if not monthly.empty:
-        import plotly.graph_objects as go
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='Masuk', x=monthly['bulan'], y=monthly['masuk'], marker_color='green'))
-        fig.add_trace(go.Bar(name='Keluar', x=monthly['bulan'], y=monthly['keluar'], marker_color='red'))
-        fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig, use_container_width=True)
+    if monthly.empty:
+        st.info(f"Tidak ada data transaksi untuk tahun {selected_year}")
+        return
+    
+    import plotly.graph_objects as go
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name='Pemasukan', x=monthly['bulan'], y=monthly['masuk'], marker_color='#2E7D32',
+                         text=monthly['masuk'].apply(lambda x: fmt_rp(x)), textposition='outside', textfont=dict(size=9)))
+    fig.add_trace(go.Bar(name='Pengeluaran', x=monthly['bulan'], y=monthly['keluar'], marker_color='#C62828',
+                         text=monthly['keluar'].apply(lambda x: fmt_rp(x)), textposition='outside', textfont=dict(size=9)))
+    fig.update_layout(title=f"Pemasukan vs Pengeluaran Tahun {selected_year}", barmode='group',
+                      xaxis_title="Bulan", yaxis_title="Jumlah (Rp)", height=450, template="plotly_white")
+    fig.update_yaxis(tickformat=',.0f')
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Ringkasan
+    total_masuk = sum(r.get("masuk", 0) for r in filtered_data)
+    total_keluar = sum(r.get("keluar", 0) for r in filtered_data)
+    saldo_akhir = total_masuk - total_keluar
+    
+    st.markdown("---")
+    st.markdown(f"### 📊 Ringkasan Tahun {selected_year}")
+    col_t1, col_t2, col_t3 = st.columns(3)
+    with col_t1:
+        st.metric("💰 Total Pemasukan", fmt_rp(total_masuk))
+    with col_t2:
+        st.metric("💸 Total Pengeluaran", fmt_rp(total_keluar))
+    with col_t3:
+        warna = "green" if saldo_akhir >= 0 else "red"
+        st.markdown(f'<div style="text-align:center"><p style="font-size:14px;margin:0">🏁 Surplus/Defisit</p><p style="color:{warna};font-size:24px;font-weight:bold">{fmt_rp(saldo_akhir)}</p></div>', unsafe_allow_html=True)
 
 def show_settings():
     st.subheader("⚙️ Pengaturan")
@@ -484,7 +521,7 @@ if 'config' not in st.session_state:
 
 def main():
     st.markdown(f"# 💰 {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}")
-    st.caption(f"GKJ BEKASI")
+    st.caption("GKJ BEKASI")
     
     menu = st.selectbox(
         "Menu",
@@ -493,8 +530,6 @@ def main():
     
     if menu == "🏠 Dashboard":
         show_dashboard()
-        st.markdown("---")
-        show_charts()
     elif menu == "➕ Input":
         show_transaksi_form()
     elif menu == "📋 Data":
