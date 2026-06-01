@@ -1,0 +1,434 @@
+[
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "26-05-2024",
+    "keterangan": "Laporan Awal serah terima dari Pengurus Lama",
+    "masuk": 11570000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": true
+  },
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "26-05-2024",
+    "keterangan": "Uang Subsidi Kesehatan (Anna putri Alm. Pak Willy)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "26-05-2024",
+    "keterangan": "Uang Duka (Ibunda Bu Retno)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "26-05-2024",
+    "keterangan": "Biaya FC Liturgi persiapan Perjamuan Kudus",
+    "masuk": 0.0,
+    "keluar": 45000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "26-05-2024",
+    "keterangan": "Uang persembahan persiapan Perjamuan Kudus",
+    "masuk": 465000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_Jun_2024",
+    "tanggal": "08-06-2024",
+    "keterangan": "Uang Subsidi Kesehatan (Pak Sehat)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Sept_2024",
+    "tanggal": "03-08-2024",
+    "keterangan": "Persembahan Ibadah Persiapan PK Rumah Pak Bin",
+    "masuk": 320000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Sept_2024",
+    "tanggal": "21-09-2024",
+    "keterangan": "Uang Subsidi Kesehatan (Bu Heru)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Sept_2024",
+    "tanggal": "05-10-2024",
+    "keterangan": "FC Tatib Ibadah Persiapan PK Rumah Pak HBL",
+    "masuk": 0.0,
+    "keluar": 30000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Nov_2024",
+    "tanggal": "05-10-2024",
+    "keterangan": "Persembahan Ibadah Persiapan PK Rumah Pak HBL",
+    "masuk": 445000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Sept_2024",
+    "tanggal": "08-10-2024",
+    "keterangan": "Dana Kelompok dari GKJ Pusat",
+    "masuk": 1000000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Nov_2024",
+    "tanggal": "12-10-2024",
+    "keterangan": "Uang Duka Kel Heni Winarto",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Nov_2024",
+    "tanggal": "24-11-2024",
+    "keterangan": "Persembahan Ibadah Persiapan PK Rumah Pak Ramos",
+    "masuk": 0.0,
+    "keluar": 124000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Feb_2025",
+    "tanggal": "29-01-2025",
+    "keterangan": "Foto Copy Liturgi IPPK",
+    "masuk": 0.0,
+    "keluar": 18750.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Feb_2025",
+    "tanggal": "29-01-2025",
+    "keterangan": "Foto Copy Liturgi IPPK",
+    "masuk": 0.0,
+    "keluar": 16000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Feb_2025",
+    "tanggal": "29-01-2025",
+    "keterangan": "Ibadah IPPK Januari Rumah Pak Bintaryo",
+    "masuk": 270000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Feb_2025",
+    "tanggal": "12-02-2025",
+    "keterangan": "Uang Subsidi Kesehatan (Pak Herdyan Balle)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Feb_2025",
+    "tanggal": "12-02-2025",
+    "keterangan": "Uang Subsidi Kesehatan (Ibu Heni Ramos)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "24-03-2025",
+    "keterangan": "Uang Subsidi Kesehatan (Ibu Triyatno)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "12-04-2025",
+    "keterangan": "Uang Telor Paskah Wilsel",
+    "masuk": 0.0,
+    "keluar": 600000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "12-04-2025",
+    "keterangan": "Foto Copy Ibadah PPK di rumah pak Wahyu",
+    "masuk": 0.0,
+    "keluar": 19000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "13-04-2025",
+    "keterangan": "Persembahan Ibadah PPK di rumah pak Wahyu",
+    "masuk": 260000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "21-04-2025",
+    "keterangan": "Uang Subsidi Kesehatan (Bp. Harsel Sangkakala)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "29-04-2025",
+    "keterangan": "Pendaftaran Servant Leadeship / retret Wilsel",
+    "masuk": 0.0,
+    "keluar": 160000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "04-05-2025",
+    "keterangan": "Uang Subsidi Kesehatan (Leya Balle)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "24-05-2025",
+    "keterangan": "Persembahan Ibadah PPK di rumah Bu Retno",
+    "masuk": 235000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "24-05-2025",
+    "keterangan": "FC Ibadah PPK di rumah Bu Retno",
+    "masuk": 0.0,
+    "keluar": 10000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "28-05-2025",
+    "keterangan": "Uang Sumbangan untuk KWD Pusat",
+    "masuk": 0.0,
+    "keluar": 350000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "14-06-2025",
+    "keterangan": "Persembahan Kelompok utk Unduh-Unduh Wilsel",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "14-06-2025",
+    "keterangan": "Persembahan Sarasehan Di Rumah Bu Haryo",
+    "masuk": 430000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "14-06-2025",
+    "keterangan": "FC untuk Sarasehan Di Rumah Bu Haryo",
+    "masuk": 0.0,
+    "keluar": 6000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "14-06-2025",
+    "keterangan": "FC untuk Bidston Bagas",
+    "masuk": 0.0,
+    "keluar": 30000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Mei_2025",
+    "tanggal": "17-06-2025",
+    "keterangan": "Dana Pengembangan Kelompok dari GKJ Pusat",
+    "masuk": 1000000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Agust_2025",
+    "tanggal": "02-08-2025",
+    "keterangan": "Persembahan Ibadah PPK di rumah Bu Andang",
+    "masuk": 330000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Agust_2025",
+    "tanggal": "12-08-2025",
+    "keterangan": "Pinjaman Pembelian Kaca Mata Bu Heru Ramidjan",
+    "masuk": 0.0,
+    "keluar": 500000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Agust_2025",
+    "tanggal": "30-08-2025",
+    "keterangan": "Sumbangan Kelompok Narogong utk HUT Wilsel",
+    "masuk": 0.0,
+    "keluar": 500000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "25-09-2025",
+    "keterangan": "Pengembalian Pinjaman Pembelian Kaca Mata Retno Ramijan",
+    "masuk": 500000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "25-10-2025",
+    "keterangan": "PK orang sakit a.n Bu Fitri Bintaryo",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "01-11-2025",
+    "keterangan": "Persembahan Sarasehan",
+    "masuk": 310000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "01-11-2025",
+    "keterangan": "FC liturgi Sarasehan",
+    "masuk": 0.0,
+    "keluar": 41500.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "03-11-2025",
+    "keterangan": "PK orang sakit a.n Jane Pelupessy",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "26-11-2025",
+    "keterangan": "PK orang sakit a.n Pak Bintaryo",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "26-11-2025",
+    "keterangan": "PK orang sakit a.n Anak Mario ( Mba Berta)",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "26-11-2025",
+    "keterangan": "Sumbangan Ke Wilsel (Tf via Bu Woro)",
+    "masuk": 0.0,
+    "keluar": 350000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "29-11-2025",
+    "keterangan": "Persembahan Ibadah PPK bulan Nov",
+    "masuk": 260000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Rev1_Sept_Nov_2025",
+    "tanggal": "29-11-2025",
+    "keterangan": "FC Liturgi Ibadah PPK bulan Nov",
+    "masuk": 0.0,
+    "keluar": 9500.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "22-01-2026",
+    "keterangan": "PK orang sakit a.n  Kel Pak Agus",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "25-01-2026",
+    "keterangan": "Persembahan Ibadah PPK bulan Jan",
+    "masuk": 310000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "25-01-2026",
+    "keterangan": "FC Liturgi Ibadah PPK bulan Jan",
+    "masuk": 0.0,
+    "keluar": 12500.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "03-02-2026",
+    "keterangan": "PK orang sakit a.n  Mba Elda",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "11-03-2026",
+    "keterangan": "PK Sripahan Kel. Ramos",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "18-03-2026",
+    "keterangan": "PK kelahiran bayi Kel. Dika",
+    "masuk": 0.0,
+    "keluar": 250000.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "28-03-2026",
+    "keterangan": "Persembahan Ibadah PPK bulan Maret",
+    "masuk": 225000.0,
+    "keluar": 0.0,
+    "is_saldo_awal": false
+  },
+  {
+    "source": "Des25_Mar26",
+    "tanggal": "28-03-2026",
+    "keterangan": "FC Liturgi Ibadah PPK bulan Maret",
+    "masuk": 0.0,
+    "keluar": 8000.0,
+    "is_saldo_awal": false
+  }
+]
