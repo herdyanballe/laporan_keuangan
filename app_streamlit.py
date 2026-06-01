@@ -141,8 +141,6 @@ def build_periode_label(rows, bulan_filter, tahun_filter):
         return f"Tahun {tahun_filter}"
     return "Semua Periode"
 
-# ==================== EXPORT PDF ====================
-
 def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     """Export ke PDF dengan orientasi Potrait dan logo"""
     
@@ -160,15 +158,9 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     silver = colors.HexColor("#EEF4FB")
     white  = colors.white
     
-    style_logo_text = ParagraphStyle("logo_text", fontName="Helvetica",
-                                      fontSize=9, textColor=colors.grey,
-                                      alignment=TA_CENTER, spaceAfter=2)
     style_title = ParagraphStyle("title", fontName="Helvetica-Bold",
                                   fontSize=14, textColor=navy, alignment=TA_CENTER,
-                                  spaceAfter=2)
-    style_periode = ParagraphStyle("periode", fontName="Helvetica",
-                                    fontSize=12, textColor=navy, alignment=TA_CENTER,
-                                    spaceAfter=8)
+                                  spaceAfter=4)
     style_sub   = ParagraphStyle("sub", fontName="Helvetica",
                                   fontSize=10, textColor=colors.grey,
                                   alignment=TA_CENTER, spaceAfter=2)
@@ -201,7 +193,9 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
             
             header_data = [[
                 logo,
-                [Paragraph("GKJ BEKASI", style_logo_text)]
+                [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
+                 Paragraph(judul_periode, style_sub),
+                 Paragraph("GKJ BEKASI", style_sub)]
             ]]
             
             header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
@@ -217,13 +211,13 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
             story.append(header_tbl)
             
         except Exception as e:
-            story.append(Paragraph("GKJ BEKASI", style_logo_text))
+            story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+            story.append(Paragraph(judul_periode, style_sub))
+            story.append(Paragraph("GKJ BEKASI", style_sub))
     else:
-        story.append(Paragraph("GKJ BEKASI", style_logo_text))
-    
-    # JUDUL 2 BARIS
-    story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-    story.append(Paragraph(judul_periode, style_periode))
+        story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+        story.append(Paragraph(judul_periode, style_sub))
+        story.append(Paragraph("GKJ BEKASI", style_sub))
     
     story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
     
@@ -316,163 +310,6 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     
     os.unlink(temp_file.name)
     return pdf_data
-
-# ==================== UI COMPONENTS ====================
-
-def show_dashboard():
-    today = date.today().strftime("%d/%m/%Y")
-    saldo = get_saldo_hari_ini(st.session_state.data)
-    total_masuk = sum(r.get("masuk", 0) for r in st.session_state.data)
-    total_keluar = sum(r.get("keluar", 0) for r in st.session_state.data)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("📅 Hari Ini", today)
-    with col2:
-        st.metric("💰 Saldo", fmt_rp(saldo))
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        st.metric("📈 Masuk", fmt_rp(total_masuk))
-    with col4:
-        st.metric("📉 Keluar", fmt_rp(total_keluar))
-
-def show_transaksi_form():
-    with st.expander("➕ Tambah Transaksi", expanded=False):
-        tgl = st.date_input("Tanggal", value=date.today(), format="DD/MM/YYYY")
-        keterangan = st.text_input("Keterangan", placeholder="Contoh: Iuran bulanan")
-        col1, col2 = st.columns(2)
-        with col1:
-            masuk = st.number_input("Kas Masuk", min_value=0, value=0, step=10000)
-        with col2:
-            keluar = st.number_input("Kas Keluar", min_value=0, value=0, step=10000)
-        
-        if st.button("💾 Simpan", type="primary"):
-            if not keterangan:
-                st.error("Keterangan wajib diisi!")
-            elif masuk > 0 and keluar > 0:
-                st.error("Isi salah satu: Masuk atau Keluar!")
-            elif masuk == 0 and keluar == 0:
-                st.error("Isi nominal!")
-            else:
-                tgl_str = tgl.strftime("%d-%m-%Y")
-                st.session_state.data.append({
-                    "tanggal": tgl_str,
-                    "keterangan": keterangan,
-                    "masuk": float(masuk),
-                    "keluar": float(keluar)
-                })
-                save_data(st.session_state.data)
-                st.success("✅ Tersimpan!")
-                st.rerun()
-
-def show_data_table():
-    st.subheader("📋 Transaksi")
-    
-    if not st.session_state.data:
-        st.info("Belum ada data")
-        return
-    
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        bulan_filter = st.selectbox("Bulan", ["Semua"] + BULAN_ID, key="bulan_filter")
-    with col_f2:
-        years = sorted({parse_tgl(r["tanggal"]).year for r in st.session_state.data 
-                       if r.get("tanggal") and parse_tgl(r["tanggal"])}, reverse=True)
-        tahun_filter = st.selectbox("Tahun", ["Semua"] + [str(y) for y in years], key="tahun_filter")
-    
-    bulan = str(BULAN_ID.index(bulan_filter)+1) if bulan_filter != "Semua" else None
-    tahun = tahun_filter if tahun_filter != "Semua" else None
-    
-    rows = filter_data(st.session_state.data, bulan, tahun)
-    
-    if rows:
-        col_pdf, _ = st.columns([1, 3])
-        with col_pdf:
-            if st.button("📄 Export PDF", use_container_width=True):
-                with st.spinner("Membuat PDF..."):
-                    pdf_data = export_pdf(st.session_state.data, rows, st.session_state.config, bulan, tahun)
-                    st.download_button(
-                        label="📥 Download PDF",
-                        data=pdf_data,
-                        file_name=f"laporan_{bulan_filter}_{tahun_filter}.pdf",
-                        mime="application/pdf"
-                    )
-        
-        df_display = []
-        saldo = 0
-        if bulan or tahun:
-            saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in get_data_before_period(st.session_state.data, bulan, tahun))
-            saldo = saldo_awal
-        
-        for i, row in enumerate(rows, 1):
-            saldo += row.get("masuk", 0) - row.get("keluar", 0)
-            df_display.append({
-                "No": i,
-                "Tgl": row["tanggal"],
-                "Ket": row["keterangan"][:35] + ".." if len(row["keterangan"]) > 35 else row["keterangan"],
-                "Masuk": fmt_rp(row.get("masuk", 0)) if row.get("masuk") else "-",
-                "Keluar": fmt_rp(row.get("keluar", 0)) if row.get("keluar") else "-",
-            })
-        
-        st.dataframe(pd.DataFrame(df_display), use_container_width=True, height=400)
-        
-        total_masuk = sum(r.get("masuk", 0) for r in rows)
-        total_keluar = sum(r.get("keluar", 0) for r in rows)
-        
-        st.markdown("---")
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            st.metric("Total Masuk", fmt_rp(total_masuk))
-        with col_r2:
-            st.metric("Total Keluar", fmt_rp(total_keluar))
-        with col_r3:
-            st.metric("Saldo Akhir", fmt_rp(saldo))
-
-def show_charts():
-    st.subheader("📊 Grafik")
-    
-    if not st.session_state.data:
-        st.info("Belum ada data")
-        return
-    
-    df = pd.DataFrame(st.session_state.data)
-    df['tanggal_dt'] = df['tanggal'].apply(parse_tgl)
-    df['bulan'] = df['tanggal_dt'].apply(lambda x: f"{BULAN_ID[x.month-1]}" if x else None)
-    df = df.dropna(subset=['bulan'])
-    
-    monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
-    
-    if not monthly.empty:
-        import plotly.graph_objects as go
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='Masuk', x=monthly['bulan'], y=monthly['masuk'], marker_color='green'))
-        fig.add_trace(go.Bar(name='Keluar', x=monthly['bulan'], y=monthly['keluar'], marker_color='red'))
-        fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig, use_container_width=True)
-
-def show_settings():
-    st.subheader("⚙️ Pengaturan")
-    
-    with st.form("settings"):
-        nama = st.text_input("Nama Kelompok", value=st.session_state.config.get("nama_kelompok", "Kelompok Narogong"))
-        gereja = st.text_input("Nama Gereja", value=st.session_state.config.get("nama_gereja", "GKJ"))
-        
-        uploaded_logo = st.file_uploader("Upload Logo", type=['png', 'jpg', 'jpeg'])
-        if uploaded_logo:
-            st.image(uploaded_logo, width=80)
-        
-        if st.form_submit_button("💾 Simpan", use_container_width=True):
-            st.session_state.config["nama_kelompok"] = nama
-            st.session_state.config["nama_gereja"] = gereja
-            if uploaded_logo:
-                with open("logo.png", "wb") as f:
-                    f.write(uploaded_logo.getbuffer())
-                st.session_state.config["logo_path"] = "logo.png"
-            save_config(st.session_state.config)
-            st.success("Tersimpan!")
-            st.rerun()
-
 # ==================== INISIALISASI ====================
 
 if 'data' not in st.session_state:
