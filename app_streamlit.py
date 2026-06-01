@@ -303,19 +303,22 @@ def show_dashboard():
         df['bulan'] = df['bulan_num'].apply(lambda x: BULAN_ID[x-1] if x else None)
         df = df.dropna(subset=['bulan'])
         
-        bulan_order = BULAN_ID.copy()
-        monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
-        monthly['bulan_num'] = monthly['bulan'].apply(lambda x: bulan_order.index(x) if x in bulan_order else 0)
-        monthly = monthly.sort_values('bulan_num').drop('bulan_num', axis=1)
-        
-        if not monthly.empty:
-            import plotly.graph_objects as go
-            fig = go.Figure()
-            fig.add_trace(go.Bar(name='Masuk', x=monthly['bulan'], y=monthly['masuk'], marker_color='#2E7D32'))
-            fig.add_trace(go.Bar(name='Keluar', x=monthly['bulan'], y=monthly['keluar'], marker_color='#C62828'))
-            fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20), template="plotly_white")
-            fig.update_yaxis(tickformat=',.0f')
-            st.plotly_chart(fig, use_container_width=True)
+        if not df.empty:
+            bulan_order = BULAN_ID.copy()
+            monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
+            monthly['bulan_num'] = monthly['bulan'].apply(lambda x: bulan_order.index(x) if x in bulan_order else 0)
+            monthly = monthly.sort_values('bulan_num').drop('bulan_num', axis=1)
+            
+            if not monthly.empty:
+                import plotly.graph_objects as go
+                fig = go.Figure()
+                fig.add_trace(go.Bar(name='Masuk', x=monthly['bulan'], y=monthly['masuk'], marker_color='#2E7D32'))
+                fig.add_trace(go.Bar(name='Keluar', x=monthly['bulan'], y=monthly['keluar'], marker_color='#C62828'))
+                fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20), template="plotly_white")
+                fig.update_yaxes(tickformat=',.0f')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info(f"Belum ada data transaksi untuk tahun {current_year}")
         else:
             st.info(f"Belum ada data untuk tahun {current_year}")
     else:
@@ -462,6 +465,10 @@ def show_charts():
     df['bulan'] = df['bulan_num'].apply(lambda x: BULAN_ID[x-1] if x else None)
     df = df.dropna(subset=['bulan'])
     
+    if df.empty:
+        st.info(f"Tidak ada data transaksi untuk tahun {selected_year}")
+        return
+    
     bulan_order = BULAN_ID.copy()
     monthly = df.groupby('bulan').agg({'masuk': 'sum', 'keluar': 'sum'}).reset_index()
     monthly['bulan_num'] = monthly['bulan'].apply(lambda x: bulan_order.index(x) if x in bulan_order else 0)
@@ -479,7 +486,7 @@ def show_charts():
                          text=monthly['keluar'].apply(lambda x: fmt_rp(x)), textposition='outside', textfont=dict(size=9)))
     fig.update_layout(title=f"Pemasukan vs Pengeluaran Tahun {selected_year}", barmode='group',
                       xaxis_title="Bulan", yaxis_title="Jumlah (Rp)", height=450, template="plotly_white")
-    fig.update_yaxis(tickformat=',.0f')
+    fig.update_yaxes(tickformat=',.0f')
     st.plotly_chart(fig, use_container_width=True)
     
     # Ringkasan
