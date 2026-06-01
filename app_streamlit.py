@@ -1,6 +1,6 @@
 """
 Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Web
-Fitur: Input transaksi, Export PDF dengan logo, Mobile Friendly, Filter Rentang Tanggal
+Fitur: Input transaksi, Edit, Hapus, Export PDF, Mobile Friendly
 """
 
 import streamlit as st
@@ -37,6 +37,14 @@ st.markdown("""
         .stMarkdown h3 { font-size: 16px !important; }
     }
     .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+    .success-toast {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,7 +111,6 @@ def get_saldo_hari_ini(data):
     return saldo
 
 def filter_data_by_date(data, tgl_awal, tgl_akhir):
-    """Filter data berdasarkan rentang tanggal"""
     if not tgl_awal and not tgl_akhir:
         return data
     result = []
@@ -118,7 +125,6 @@ def filter_data_by_date(data, tgl_awal, tgl_akhir):
     return sorted(result, key=lambda r: tgl_to_sort_key(r.get("tanggal", "")))
 
 def get_data_before_date(data, tgl_akhir):
-    """Ambil data sebelum tanggal tertentu"""
     if not tgl_akhir:
         return []
     result = []
@@ -129,7 +135,6 @@ def get_data_before_date(data, tgl_akhir):
     return result
 
 def build_periode_label(rows, tgl_awal=None, tgl_akhir=None):
-    """Buat label periode untuk judul PDF"""
     if tgl_awal and tgl_akhir:
         return f"{tgl_awal.strftime('%d %B %Y')} - {tgl_akhir.strftime('%d %B %Y')}"
     if rows:
@@ -147,7 +152,6 @@ def build_periode_label(rows, tgl_awal=None, tgl_akhir=None):
 # ==================== FUNGSI EXPORT PDF ====================
 
 def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
-    """Export ke PDF dengan orientasi Potrait dan logo"""
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
     temp_file.close()
     
@@ -209,7 +213,6 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     # Table data
     table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
     
-    # Hitung saldo awal (sebelum periode)
     if tgl_awal:
         all_before = get_data_before_date(data, tgl_awal)
         saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
@@ -229,7 +232,6 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     total_masuk = sum(r.get("masuk", 0) for r in rows)
     total_keluar = sum(r.get("keluar", 0) for r in rows)
     
-    # Tampilkan saldo awal jika ada
     if tgl_awal:
         all_before = get_data_before_date(data, tgl_awal)
         saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
@@ -331,40 +333,61 @@ def show_dashboard():
         st.info(f"Belum ada data untuk tahun {current_year}")
 
 def show_transaksi_form():
-    with st.expander("➕ Tambah Transaksi", expanded=False):
-        tgl = st.date_input("Tanggal", value=date.today(), format="DD/MM/YYYY")
-        keterangan = st.text_input("Keterangan", placeholder="Contoh: Iuran bulanan")
+    """Form Input Transaksi dengan pencegahan double input"""
+    with st.expander("➕ Tambah Transaksi Baru", expanded=False):
+        tgl = st.date_input("📅 Tanggal", value=date.today(), format="DD/MM/YYYY")
+        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan, Pembelian perlengkapan, dll")
         col1, col2 = st.columns(2)
         with col1:
-            masuk = st.number_input("Kas Masuk", min_value=0, value=0, step=10000)
+            masuk = st.number_input("💰 Kas Masuk", min_value=0, value=0, step=10000)
         with col2:
-            keluar = st.number_input("Kas Keluar", min_value=0, value=0, step=10000)
+            keluar = st.number_input("💸 Kas Keluar", min_value=0, value=0, step=10000)
         
-        if st.button("💾 Simpan", type="primary"):
-            if not keterangan:
-                st.error("Keterangan wajib diisi!")
+        # Tombol simpan dengan key unik untuk mencegah double click
+        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True, key="btn_simpan"):
+            # Validasi
+            if not keterangan.strip():
+                st.error("❌ Keterangan wajib diisi!")
             elif masuk > 0 and keluar > 0:
-                st.error("Isi salah satu: Masuk atau Keluar!")
+                st.error("❌ Hanya boleh mengisi salah satu: Kas Masuk ATAU Kas Keluar!")
             elif masuk == 0 and keluar == 0:
-                st.error("Isi nominal!")
+                st.error("❌ Harap isi nominal Kas Masuk atau Kas Keluar!")
             else:
                 tgl_str = tgl.strftime("%d-%m-%Y")
-                new_data = {
-                    "tanggal": tgl_str,
-                    "keterangan": keterangan,
-                    "masuk": float(masuk),
-                    "keluar": float(keluar)
-                }
-                st.session_state.data.append(new_data)
-                save_data(st.session_state.data)
-                st.success("✅ Tersimpan!")
-                st.rerun()
+                
+                # Cek duplikat (transaksi dengan tanggal, keterangan, nominal yang sama)
+                is_duplicate = False
+                for existing in st.session_state.data:
+                    if (existing.get("tanggal") == tgl_str and 
+                        existing.get("keterangan") == keterangan.strip() and
+                        existing.get("masuk", 0) == float(masuk) and
+                        existing.get("keluar", 0) == float(keluar)):
+                        is_duplicate = True
+                        break
+                
+                if is_duplicate:
+                    st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
+                else:
+                    new_data = {
+                        "tanggal": tgl_str,
+                        "keterangan": keterangan.strip(),
+                        "masuk": float(masuk),
+                        "keluar": float(keluar)
+                    }
+                    st.session_state.data.append(new_data)
+                    save_data(st.session_state.data)
+                    # Tampilkan pesan sukses
+                    st.success(f"✅ Transaksi berhasil disimpan!\n\n📅 {tgl_str}\n📝 {keterangan}\n💰 {fmt_rp(masuk if masuk > 0 else keluar)}")
+                    st.balloons()  # Animasi sukses
+                    # Reset form
+                    st.rerun()
 
 def show_data_table():
-    st.subheader("📋 Transaksi")
+    """Tampilan Data Transaksi dengan Edit dan Hapus"""
+    st.subheader("📋 Daftar Transaksi")
     
     if not st.session_state.data:
-        st.info("Belum ada data")
+        st.info("📭 Belum ada data. Silakan tambah transaksi baru.")
         return
     
     # Dapatkan tanggal min dan max dari semua data
@@ -399,63 +422,138 @@ def show_data_table():
             key="tgl_akhir"
         )
     
-    # Validasi tanggal
     if tgl_awal > tgl_akhir:
         st.error("⚠️ Tanggal 'Dari' tidak boleh lebih besar dari 'Sampai'")
         return
     
-    # Konversi ke datetime
     tgl_awal_dt = datetime.combine(tgl_awal, datetime.min.time())
     tgl_akhir_dt = datetime.combine(tgl_akhir, datetime.min.time())
     
-    # Filter data berdasarkan rentang tanggal
     rows = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
             tgl_awal_dt <= parse_tgl(r.get("tanggal", "")) <= tgl_akhir_dt]
-    
-    # Urutkan berdasarkan tanggal
     rows = sorted(rows, key=lambda r: parse_tgl(r.get("tanggal", "")))
     
-    # Tampilkan info periode yang dipilih
     periode_text = f"{tgl_awal.strftime('%d %B %Y')} - {tgl_akhir.strftime('%d %B %Y')}"
-    st.caption(f"Menampilkan data periode: **{periode_text}**")
+    st.caption(f"📊 Menampilkan {len(rows)} transaksi periode: **{periode_text}**")
     
     if rows:
-        col_pdf, _ = st.columns([1, 3])
+        col_pdf, col_spacer = st.columns([1, 3])
         with col_pdf:
-            if st.button("📄 Export PDF", use_container_width=True):
-                with st.spinner("Membuat PDF..."):
+            if st.button("📄 EXPORT PDF", use_container_width=True, key="btn_export"):
+                with st.spinner("📑 Sedang membuat PDF..."):
                     pdf_data = export_pdf(
                         st.session_state.data, rows, st.session_state.config,
                         tgl_awal_dt, tgl_akhir_dt
                     )
                     st.download_button(
-                        label="📥 Download PDF",
+                        label="📥 DOWNLOAD PDF",
                         data=pdf_data,
-                        file_name=f"laporan_{tgl_awal.strftime('%Y%m%d')}_{tgl_akhir.strftime('%Y%m%d')}.pdf",
+                        file_name=f"laporan_kas_{tgl_awal.strftime('%Y%m%d')}_{tgl_akhir.strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         key="download_pdf"
                     )
         
-        # Tampilkan data dalam bentuk dataframe
-        df_display = []
+        # Tampilkan data dengan kolom aksi
+        st.markdown("### 📝 Data Transaksi")
         
-        # Hitung saldo awal (sebelum periode yang dipilih)
+        # Hitung saldo awal
         before_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
                        parse_tgl(r.get("tanggal", "")) < tgl_awal_dt]
         saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
         
-        for i, row in enumerate(rows, 1):
+        # Tampilkan setiap baris dengan tombol Edit dan Hapus
+        for idx, row in enumerate(rows):
+            col1, col2, col3, col4, col5, col6, col7 = st.columns([0.5, 1.2, 3, 1.2, 1.2, 1, 1])
+            
             saldo += row.get("masuk", 0) - row.get("keluar", 0)
-            ket = row.get("keterangan", "")
-            df_display.append({
-                "No": i,
-                "Tanggal": row.get("tanggal", ""),
-                "Keterangan": ket[:40] + ".." if len(ket) > 40 else ket,
-                "Kas Masuk": fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
-                "Kas Keluar": fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
-            })
+            
+            with col1:
+                st.write(f"{idx+1}")
+            with col2:
+                st.write(row.get("tanggal", ""))
+            with col3:
+                st.write(row.get("keterangan", "")[:40])
+            with col4:
+                st.write(fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-")
+            with col5:
+                st.write(fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-")
+            with col6:
+                if st.button("✏️ Edit", key=f"edit_{idx}", use_container_width=True):
+                    st.session_state.edit_index = idx
+                    st.session_state.edit_data = row.copy()
+                    st.session_state.edit_mode = True
+                    st.rerun()
+            with col7:
+                if st.button("🗑️ Hapus", key=f"del_{idx}", use_container_width=True):
+                    st.session_state.delete_index = idx
+                    st.session_state.delete_data = row.copy()
+                    st.session_state.delete_mode = True
+                    st.rerun()
+            
+            st.divider()
         
-        st.dataframe(pd.DataFrame(df_display), use_container_width=True, height=400)
+        # Modal Edit
+        if st.session_state.get('edit_mode', False):
+            with st.expander("✏️ EDIT TRANSAKSI", expanded=True):
+                edit_data = st.session_state.edit_data
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    tgl_edit = st.date_input("Tanggal", value=parse_tgl(edit_data.get("tanggal", "")).date(), format="DD/MM/YYYY")
+                    ket_edit = st.text_input("Keterangan", value=edit_data.get("keterangan", ""))
+                with col_e2:
+                    masuk_edit = st.number_input("Kas Masuk", min_value=0, value=int(edit_data.get("masuk", 0)), step=10000)
+                    keluar_edit = st.number_input("Kas Keluar", min_value=0, value=int(edit_data.get("keluar", 0)), step=10000)
+                
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("💾 SIMPAN PERUBAHAN", type="primary", use_container_width=True):
+                        tgl_str = tgl_edit.strftime("%d-%m-%Y")
+                        # Update data
+                        index = st.session_state.edit_index
+                        rows_filtered = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
+                                        tgl_awal_dt <= parse_tgl(r.get("tanggal", "")) <= tgl_akhir_dt]
+                        original_row = rows_filtered[index]
+                        # Cari dan update di data utama
+                        for i, item in enumerate(st.session_state.data):
+                            if item == original_row:
+                                st.session_state.data[i] = {
+                                    "tanggal": tgl_str,
+                                    "keterangan": ket_edit,
+                                    "masuk": float(masuk_edit),
+                                    "keluar": float(keluar_edit)
+                                }
+                                break
+                        save_data(st.session_state.data)
+                        st.success("✅ Transaksi berhasil diupdate!")
+                        st.session_state.edit_mode = False
+                        st.rerun()
+                with col_btn2:
+                    if st.button("❌ BATAL", use_container_width=True):
+                        st.session_state.edit_mode = False
+                        st.rerun()
+        
+        # Modal Hapus
+        if st.session_state.get('delete_mode', False):
+            st.warning("⚠️ Apakah Anda yakin ingin menghapus transaksi ini?")
+            delete_data = st.session_state.delete_data
+            st.info(f"📅 {delete_data.get('tanggal')} | 📝 {delete_data.get('keterangan')} | 💰 {fmt_rp(delete_data.get('masuk', 0)) if delete_data.get('masuk', 0) else fmt_rp(delete_data.get('keluar', 0))}")
+            
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("✅ YA, HAPUS", type="primary", use_container_width=True):
+                    index = st.session_state.delete_index
+                    rows_filtered = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
+                                    tgl_awal_dt <= parse_tgl(r.get("tanggal", "")) <= tgl_akhir_dt]
+                    original_row = rows_filtered[index]
+                    st.session_state.data.remove(original_row)
+                    save_data(st.session_state.data)
+                    st.success("🗑️ Transaksi berhasil dihapus!")
+                    st.session_state.delete_mode = False
+                    st.rerun()
+            with col_btn2:
+                if st.button("❌ TIDAK, BATAL", use_container_width=True):
+                    st.session_state.delete_mode = False
+                    st.rerun()
         
         # Ringkasan
         total_masuk = sum(r.get("masuk", 0) for r in rows)
@@ -463,7 +561,7 @@ def show_data_table():
         saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
         
         st.markdown("---")
-        st.markdown("### 📊 Ringkasan")
+        st.markdown("### 📊 RINGKASAN")
         
         if saldo_awal != 0:
             col_r1, col_r2, col_r3, col_r4 = st.columns(4)
@@ -484,7 +582,7 @@ def show_data_table():
             with col_r3:
                 st.metric("🏁 Saldo Akhir", fmt_rp(saldo))
     else:
-        st.warning(f"Tidak ada transaksi untuk periode {periode_text}")
+        st.warning(f"⚠️ Tidak ada transaksi untuk periode {periode_text}")
 
 def show_charts():
     st.subheader("📊 Grafik Keuangan")
@@ -493,7 +591,6 @@ def show_charts():
         st.info("Belum ada data untuk ditampilkan.")
         return
     
-    # Ambil daftar tahun yang tersedia
     available_years = []
     for r in st.session_state.data:
         tgl = parse_tgl(r.get("tanggal", ""))
@@ -519,7 +616,6 @@ def show_charts():
             key="chart_year"
         )
     
-    # Filter data berdasarkan tahun
     filtered_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and parse_tgl(r.get("tanggal", "")).year == selected_year]
     
     if not filtered_data:
@@ -556,7 +652,6 @@ def show_charts():
     fig.update_yaxes(tickformat=',.0f')
     st.plotly_chart(fig, use_container_width=True)
     
-    # Ringkasan
     total_masuk = sum(r.get("masuk", 0) for r in filtered_data)
     total_keluar = sum(r.get("keluar", 0) for r in filtered_data)
     saldo_akhir = total_masuk - total_keluar
@@ -581,7 +676,7 @@ def show_settings():
         if st.form_submit_button("💾 Simpan", use_container_width=True):
             st.session_state.config["nama_kelompok"] = nama
             save_config(st.session_state.config)
-            st.success("Tersimpan!")
+            st.success("✅ Pengaturan tersimpan!")
             st.rerun()
 
 # ==================== INISIALISASI SESSION STATE ====================
@@ -590,6 +685,10 @@ if 'data' not in st.session_state:
     st.session_state.data = load_data()
 if 'config' not in st.session_state:
     st.session_state.config = load_config()
+if 'edit_mode' not in st.session_state:
+    st.session_state.edit_mode = False
+if 'delete_mode' not in st.session_state:
+    st.session_state.delete_mode = False
 
 # ==================== MAIN APP ====================
 
@@ -614,7 +713,7 @@ def main():
         show_settings()
     
     st.markdown("---")
-    st.caption(f"Total: {len(st.session_state.data)} transaksi")
+    st.caption(f"📊 Total: {len(st.session_state.data)} transaksi")
 
 if __name__ == "__main__":
     main()
