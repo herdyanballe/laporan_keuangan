@@ -1,6 +1,6 @@
 """
 Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Web
-Fitur: Input transaksi, Export PDF dengan logo, Mobile Friendly
+Fitur: Input transaksi, Export PDF dengan logo, Mobile Friendly, Filter Rentang Tanggal
 """
 
 import streamlit as st
@@ -102,53 +102,57 @@ def get_saldo_hari_ini(data):
             saldo += r.get("masuk", 0) - r.get("keluar", 0)
     return saldo
 
-def filter_data(data, bulan, tahun):
+def filter_data_by_date(data, tgl_awal, tgl_akhir):
+    """Filter data berdasarkan rentang tanggal"""
+    if not tgl_awal and not tgl_akhir:
+        return data
     result = []
     for r in data:
-        tgl = r.get("tanggal","")
-        d = parse_tgl(tgl)
-        if d:
-            if tahun and str(d.year) != str(tahun):
+        tgl = parse_tgl(r.get("tanggal", ""))
+        if tgl:
+            if tgl_awal and tgl < tgl_awal:
                 continue
-            if bulan and str(d.month) != str(bulan):
+            if tgl_akhir and tgl > tgl_akhir:
                 continue
-        result.append(r)
-    return sorted(result, key=lambda r: tgl_to_sort_key(r.get("tanggal","")))
+            result.append(r)
+    return sorted(result, key=lambda r: tgl_to_sort_key(r.get("tanggal", "")))
 
-def get_data_before_period(data, bulan_filter, tahun_filter):
-    if not bulan_filter and not tahun_filter:
+def get_data_before_date(data, tgl_akhir):
+    """Ambil data sebelum tanggal tertentu"""
+    if not tgl_akhir:
         return []
     result = []
     for r in data:
-        tgl = r.get("tanggal", "")
-        d = parse_tgl(tgl)
-        if d:
-            if tahun_filter and d.year < int(tahun_filter):
-                result.append(r)
-            elif tahun_filter and d.year == int(tahun_filter) and bulan_filter:
-                if d.month < int(bulan_filter):
-                    result.append(r)
-            elif tahun_filter and not bulan_filter:
-                if d.year < int(tahun_filter):
-                    result.append(r)
+        tgl = parse_tgl(r.get("tanggal", ""))
+        if tgl and tgl < tgl_akhir:
+            result.append(r)
     return result
 
-def build_periode_label(rows, bulan_filter, tahun_filter):
-    if bulan_filter and tahun_filter:
-        bulan_int = int(bulan_filter)
-        return f"Bulan {BULAN_ID[bulan_int-1]} {tahun_filter}"
-    if tahun_filter:
-        return f"Tahun {tahun_filter}"
+def build_periode_label(rows, tgl_awal=None, tgl_akhir=None):
+    """Buat label periode untuk judul PDF"""
+    if tgl_awal and tgl_akhir:
+        return f"{tgl_awal.strftime('%d %B %Y')} - {tgl_akhir.strftime('%d %B %Y')}"
+    if rows:
+        try:
+            tanggals = [parse_tgl(r.get("tanggal", "")) for r in rows if r.get("tanggal")]
+            tanggals = [d for d in tanggals if d]
+            if tanggals:
+                tgl_awal = min(tanggals)
+                tgl_akhir = max(tanggals)
+                return f"{tgl_awal.strftime('%d %B %Y')} - {tgl_akhir.strftime('%d %B %Y')}"
+        except:
+            pass
     return "Semua Periode"
 
 # ==================== FUNGSI EXPORT PDF ====================
 
-def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
+def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
+    """Export ke PDF dengan orientasi Potrait dan logo"""
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
     temp_file.close()
     
     nama_kel = config.get("nama_kelompok", "Kelompok Narogong")
-    judul_periode = build_periode_label(rows, bulan_filter, tahun_filter)
+    judul_periode = build_periode_label(rows, tgl_awal, tgl_akhir)
     
     doc = SimpleDocTemplate(temp_file.name, pagesize=A4,
                              leftMargin=1.5*cm, rightMargin=1.5*cm,
@@ -205,8 +209,9 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     # Table data
     table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
     
-    if bulan_filter or tahun_filter:
-        all_before = get_data_before_period(data, bulan_filter, tahun_filter)
+    # Hitung saldo awal (sebelum periode)
+    if tgl_awal:
+        all_before = get_data_before_date(data, tgl_awal)
         saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
     else:
         saldo = 0
@@ -224,14 +229,15 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     total_masuk = sum(r.get("masuk", 0) for r in rows)
     total_keluar = sum(r.get("keluar", 0) for r in rows)
     
-    if bulan_filter or tahun_filter:
-        all_before = get_data_before_period(data, bulan_filter, tahun_filter)
+    # Tampilkan saldo awal jika ada
+    if tgl_awal:
+        all_before = get_data_before_date(data, tgl_awal)
         saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in all_before)
-        table_data.append(["", "", "", "", "", ""])
-        table_data.append(["", "", f"SALDO AWAL: {fmt_rp(saldo_awal)}", "", "", ""])
-        table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
-    else:
-        table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
+        if saldo_awal != 0:
+            table_data.append(["", "", "", "", "", ""])
+            table_data.append(["", "", f"SALDO AWAL: {fmt_rp(saldo_awal)}", "", "", ""])
+    
+    table_data.append(["", "", "TOTAL", fmt_rp(total_masuk), fmt_rp(total_keluar), fmt_rp(saldo)])
     
     col_w = [0.7*cm, 1.8*cm, 6.8*cm, 2.3*cm, 2.3*cm, 2.5*cm]
     tbl = Table(table_data, colWidths=col_w, repeatRows=1)
@@ -361,63 +367,124 @@ def show_data_table():
         st.info("Belum ada data")
         return
     
+    # Dapatkan tanggal min dan max dari semua data
+    all_dates = [parse_tgl(r.get("tanggal", "")) for r in st.session_state.data if r.get("tanggal")]
+    all_dates = [d for d in all_dates if d]
+    
+    if not all_dates:
+        st.info("Belum ada data transaksi")
+        return
+    
+    min_date = min(all_dates).date()
+    max_date = max(all_dates).date()
+    
+    # Filter Rentang Tanggal
+    st.markdown("### 📆 Filter Periode")
+    
     col_f1, col_f2 = st.columns(2)
     with col_f1:
-        bulan_filter = st.selectbox("Bulan", ["Semua"] + BULAN_ID, key="bulan_filter")
+        tgl_awal = st.date_input(
+            "📅 Dari Tanggal", 
+            value=min_date, 
+            min_value=min_date, 
+            max_value=max_date, 
+            key="tgl_awal"
+        )
     with col_f2:
-        years = sorted({parse_tgl(r.get("tanggal", "")).year for r in st.session_state.data 
-                       if r.get("tanggal") and parse_tgl(r.get("tanggal", ""))}, reverse=True)
-        tahun_filter = st.selectbox("Tahun", ["Semua"] + [str(y) for y in years], key="tahun_filter")
+        tgl_akhir = st.date_input(
+            "📅 Sampai Tanggal", 
+            value=max_date, 
+            min_value=min_date, 
+            max_value=max_date, 
+            key="tgl_akhir"
+        )
     
-    bulan = str(BULAN_ID.index(bulan_filter)+1) if bulan_filter != "Semua" else None
-    tahun = tahun_filter if tahun_filter != "Semua" else None
+    # Validasi tanggal
+    if tgl_awal > tgl_akhir:
+        st.error("⚠️ Tanggal 'Dari' tidak boleh lebih besar dari 'Sampai'")
+        return
     
-    rows = filter_data(st.session_state.data, bulan, tahun)
+    # Konversi ke datetime
+    tgl_awal_dt = datetime.combine(tgl_awal, datetime.min.time())
+    tgl_akhir_dt = datetime.combine(tgl_akhir, datetime.min.time())
+    
+    # Filter data berdasarkan rentang tanggal
+    rows = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
+            tgl_awal_dt <= parse_tgl(r.get("tanggal", "")) <= tgl_akhir_dt]
+    
+    # Urutkan berdasarkan tanggal
+    rows = sorted(rows, key=lambda r: parse_tgl(r.get("tanggal", "")))
+    
+    # Tampilkan info periode yang dipilih
+    periode_text = f"{tgl_awal.strftime('%d %B %Y')} - {tgl_akhir.strftime('%d %B %Y')}"
+    st.caption(f"Menampilkan data periode: **{periode_text}**")
     
     if rows:
         col_pdf, _ = st.columns([1, 3])
         with col_pdf:
             if st.button("📄 Export PDF", use_container_width=True):
                 with st.spinner("Membuat PDF..."):
-                    pdf_data = export_pdf(st.session_state.data, rows, st.session_state.config, bulan, tahun)
+                    pdf_data = export_pdf(
+                        st.session_state.data, rows, st.session_state.config,
+                        tgl_awal_dt, tgl_akhir_dt
+                    )
                     st.download_button(
                         label="📥 Download PDF",
                         data=pdf_data,
-                        file_name=f"laporan_{bulan_filter}_{tahun_filter}.pdf",
+                        file_name=f"laporan_{tgl_awal.strftime('%Y%m%d')}_{tgl_akhir.strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         key="download_pdf"
                     )
         
+        # Tampilkan data dalam bentuk dataframe
         df_display = []
-        saldo = 0
-        if bulan or tahun:
-            before_data = get_data_before_period(st.session_state.data, bulan, tahun)
-            saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
+        
+        # Hitung saldo awal (sebelum periode yang dipilih)
+        before_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
+                       parse_tgl(r.get("tanggal", "")) < tgl_awal_dt]
+        saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
         
         for i, row in enumerate(rows, 1):
             saldo += row.get("masuk", 0) - row.get("keluar", 0)
             ket = row.get("keterangan", "")
             df_display.append({
                 "No": i,
-                "Tgl": row.get("tanggal", ""),
-                "Ket": ket[:35] + ".." if len(ket) > 35 else ket,
-                "Masuk": fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
-                "Keluar": fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
+                "Tanggal": row.get("tanggal", ""),
+                "Keterangan": ket[:40] + ".." if len(ket) > 40 else ket,
+                "Kas Masuk": fmt_rp(row.get("masuk", 0)) if row.get("masuk", 0) else "-",
+                "Kas Keluar": fmt_rp(row.get("keluar", 0)) if row.get("keluar", 0) else "-",
             })
         
         st.dataframe(pd.DataFrame(df_display), use_container_width=True, height=400)
         
+        # Ringkasan
         total_masuk = sum(r.get("masuk", 0) for r in rows)
         total_keluar = sum(r.get("keluar", 0) for r in rows)
+        saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
         
         st.markdown("---")
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            st.metric("Total Masuk", fmt_rp(total_masuk))
-        with col_r2:
-            st.metric("Total Keluar", fmt_rp(total_keluar))
-        with col_r3:
-            st.metric("Saldo Akhir", fmt_rp(saldo))
+        st.markdown("### 📊 Ringkasan")
+        
+        if saldo_awal != 0:
+            col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+            with col_r1:
+                st.metric("💰 Saldo Awal", fmt_rp(saldo_awal))
+            with col_r2:
+                st.metric("📈 Total Masuk", fmt_rp(total_masuk))
+            with col_r3:
+                st.metric("📉 Total Keluar", fmt_rp(total_keluar))
+            with col_r4:
+                st.metric("🏁 Saldo Akhir", fmt_rp(saldo))
+        else:
+            col_r1, col_r2, col_r3 = st.columns(3)
+            with col_r1:
+                st.metric("📈 Total Masuk", fmt_rp(total_masuk))
+            with col_r2:
+                st.metric("📉 Total Keluar", fmt_rp(total_keluar))
+            with col_r3:
+                st.metric("🏁 Saldo Akhir", fmt_rp(saldo))
+    else:
+        st.warning(f"Tidak ada transaksi untuk periode {periode_text}")
 
 def show_charts():
     st.subheader("📊 Grafik Keuangan")
