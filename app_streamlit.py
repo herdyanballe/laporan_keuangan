@@ -1,6 +1,6 @@
 """
 Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Web
-Optimasi untuk Mobile & Loading Cepat
+Fitur: Input transaksi, Export PDF dengan logo, Mobile Friendly
 """
 
 import streamlit as st
@@ -18,7 +18,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 import tempfile
 
-# Konfigurasi halaman - OPTIMASI untuk mobile
+# Konfigurasi halaman
 st.set_page_config(
     page_title="Kas Narogong",
     page_icon="💰",
@@ -40,14 +40,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Data storage ──────────────────────────────────────────────────────────────
+# ==================== DATA STORAGE ====================
+
 DATA_FILE = "data_kas.json"
 CONFIG_FILE = "config.json"
 
 BULAN_ID = ["Januari","Februari","Maret","April","Mei","Juni",
             "Juli","Agustus","September","Oktober","November","Desember"]
 
-# Cache data loading
 @st.cache_data(ttl=60)
 def load_data_cached():
     if os.path.exists(DATA_FILE):
@@ -141,7 +141,7 @@ def build_periode_label(rows, bulan_filter, tahun_filter):
         return f"Tahun {tahun_filter}"
     return "Semua Periode"
 
-# ==================== FUNGSI EXPORT PDF ====================
+# ==================== EXPORT PDF ====================
 
 def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     """Export ke PDF dengan orientasi Potrait dan logo"""
@@ -150,7 +150,6 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     temp_file.close()
     
     nama_kel = config.get("nama_kelompok", "Kelompok Narogong")
-    nama_ger = config.get("nama_gereja", "GKJ")
     judul_periode = build_periode_label(rows, bulan_filter, tahun_filter)
     
     doc = SimpleDocTemplate(temp_file.name, pagesize=A4,
@@ -161,24 +160,26 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     silver = colors.HexColor("#EEF4FB")
     white  = colors.white
     
+    style_logo_text = ParagraphStyle("logo_text", fontName="Helvetica",
+                                      fontSize=9, textColor=colors.grey,
+                                      alignment=TA_CENTER, spaceAfter=2)
     style_title = ParagraphStyle("title", fontName="Helvetica-Bold",
                                   fontSize=14, textColor=navy, alignment=TA_CENTER,
-                                  spaceAfter=4)
+                                  spaceAfter=2)
+    style_periode = ParagraphStyle("periode", fontName="Helvetica",
+                                    fontSize=12, textColor=navy, alignment=TA_CENTER,
+                                    spaceAfter=8)
     style_sub   = ParagraphStyle("sub", fontName="Helvetica",
                                   fontSize=10, textColor=colors.grey,
-                                  alignment=TA_CENTER, spaceAfter=2)
-    style_sub2   = ParagraphStyle("sub2", fontName="Helvetica",
-                                  fontSize=9, textColor=colors.grey,
                                   alignment=TA_CENTER, spaceAfter=2)
     style_cell  = ParagraphStyle("cell", fontName="Helvetica", fontSize=8,
                                   leading=10)
     
     story = []
     
-    # ── HEADER DENGAN LOGO ──
+    # HEADER DENGAN LOGO
     logo_path = config.get("logo_path", "")
     
-    # Cek beberapa kemungkinan lokasi logo
     possible_logo_paths = [
         logo_path,
         "logo.png",
@@ -200,9 +201,7 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
             
             header_data = [[
                 logo,
-                [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
-                 Paragraph(judul_periode, style_sub),
-                 Paragraph(nama_ger, style_sub2)]
+                [Paragraph("GKJ BEKASI", style_logo_text)]
             ]]
             
             header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
@@ -218,17 +217,17 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
             story.append(header_tbl)
             
         except Exception as e:
-            story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-            story.append(Paragraph(judul_periode, style_sub))
-            story.append(Paragraph(nama_ger, style_sub2))
+            story.append(Paragraph("GKJ BEKASI", style_logo_text))
     else:
-        story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-        story.append(Paragraph(judul_periode, style_sub))
-        story.append(Paragraph(nama_ger, style_sub2))
+        story.append(Paragraph("GKJ BEKASI", style_logo_text))
+    
+    # JUDUL 2 BARIS
+    story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+    story.append(Paragraph(judul_periode, style_periode))
     
     story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
     
-    # ── TABLE DATA ──
+    # TABLE DATA
     table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
     
     if bulan_filter or tahun_filter:
@@ -304,7 +303,7 @@ def export_pdf(data, rows, config, bulan_filter=None, tahun_filter=None):
     tbl.setStyle(tbl_style)
     story.append(tbl)
     
-    # ── FOOTER ──
+    # FOOTER
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     tgl_cetak = datetime.now().strftime("%d %B %Y %H:%M")
