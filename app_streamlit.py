@@ -20,12 +20,13 @@ import tempfile
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import base64
 
 # ==================== KONFIGURASI HALAMAN ====================
 st.set_page_config(
     page_title="Kas Narogong",
-    page_icon="💰",
-    layout="wide",  # Ubah ke wide untuk tampilan lebih luas
+    page_icon="⛪",
+    layout="wide",
     initial_sidebar_state="auto"
 )
 
@@ -120,6 +121,11 @@ st.markdown("""
         border: none;
         height: 1px;
         background: linear-gradient(90deg, transparent, #ccc, transparent);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #1F4E79 0%, #2E6DA4 100%);
     }
     
     /* Responsive */
@@ -422,7 +428,7 @@ def show_metric_cards():
         <div class="metric-card">
             <div class="metric-title">📉 TOTAL PENGELUARAN</div>
             <div class="metric-value">{fmt_rp(total_keluar)}</div>
-            <div class="metric-change">Rasio: {(total_keluar/total_masuk*100):.1f}% dari pemasukan</div>
+            <div class="metric-change">Rasio: {(total_keluar/total_masuk*100) if total_masuk > 0 else 0:.1f}% dari pemasukan</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -510,6 +516,8 @@ def show_trend_chart():
         )
         
         st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Belum ada data untuk ditampilkan")
 
 def show_category_breakdown():
     """Menampilkan breakdown per kategori"""
@@ -632,7 +640,7 @@ def show_interactive_chart():
             mode='markers+text',
             marker=dict(
                 size=df["Profit"].abs() / 100000,
-                sizeref=2.*max(df["Profit"].abs()) / (50**2),
+                sizeref=2.*max(df["Profit"].abs()) / (50**2) if df["Profit"].abs().max() > 0 else 1,
                 sizemin=10,
                 color=df["Profit"],
                 colorscale='RdYlGn',
@@ -660,15 +668,12 @@ def show_interactive_chart():
             hovermode='closest'
         )
         
-        fig.update_xaxis(tickformat=',.0f')
-        fig.update_yaxis(tickformat=',.0f')
+        fig.update_xaxes(tickformat=',.0f')
+        fig.update_yaxes(tickformat=',.0f')
         
-        # Event click
-        selected = st.plotly_chart(fig, use_container_width=True, key="bubble_chart", on_select="rerun")
+        st.plotly_chart(fig, use_container_width=True, key="bubble_chart")
         
-        # Tampilkan detail bulan yang dipilih
-        if selected and selected.get('selection'):
-            st.info("👆 Klik salah satu bubble untuk melihat detail trend bulan tersebut")
+        st.info("👆 Klik salah satu bubble untuk melihat detail trend bulan tersebut")
     else:
         st.info("Belum ada data untuk ditampilkan")
 
@@ -727,6 +732,8 @@ def show_operational_insights():
                 <div>📝 Total transaksi: {total_transaksi}</div>
             </div>
             """, unsafe_allow_html=True)
+        else:
+            st.info("Belum ada data transaksi")
 
 def show_transaksi_form():
     """Form Input Transaksi dengan pencegahan double input"""
@@ -986,13 +993,30 @@ if 'delete_mode' not in st.session_state:
 # ==================== MAIN APP ====================
 
 def main():
-    # Header Premium
-    st.markdown(f"""
-    <div class="main-header">
-        <h1>💰 {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
-        <p>GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Cek apakah logo GKJ ada
+    logo_gkj_path = "logo-gkj.png"
+    logo_exists = os.path.exists(logo_gkj_path)
+    
+    if logo_exists:
+        with open(logo_gkj_path, "rb") as f:
+            logo_data = base64.b64encode(f.read()).decode()
+        
+        st.markdown(f"""
+        <div class="main-header" style="display: flex; align-items: center; gap: 20px;">
+            <img src="data:image/png;base64,{logo_data}" style="width: 55px; height: 55px; border-radius: 12px; object-fit: cover;">
+            <div>
+                <h1 style="margin: 0;">{st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
+                <p style="margin: 5px 0 0 0;">GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="main-header">
+            <h1>⛪ {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
+            <p>GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Sidebar menu
     with st.sidebar:
@@ -1005,7 +1029,6 @@ def main():
         st.markdown("---")
         st.caption(f"📊 Total Transaksi: **{len(st.session_state.data)}**")
         
-        # Status indicator
         if st.session_state.data:
             st.caption("✅ Data tersimpan")
         else:
@@ -1027,7 +1050,6 @@ def main():
     elif menu == "⚙️ SETTING":
         show_settings()
     
-    # Footer
     st.markdown("---")
     st.caption(f"© {datetime.now().year} {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')} • GKJ BEKASI • Laporan Keuangan Kas")
 
