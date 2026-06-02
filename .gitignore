@@ -1,0 +1,8 @@
+# Jangan upload file data ke GitHub!
+data_kas.json
+config.json
+
+# Jangan upload file sementara
+*.pyc
+__pycache__/
+*.log
