@@ -400,39 +400,77 @@ def show_category_breakdown():
 # ==================== FORM INPUT ====================
 
 def show_transaksi_form():
+    """Form Input Transaksi dengan pencegahan double input"""
     with st.expander("➕ Tambah Transaksi Baru", expanded=False):
         tgl = st.date_input("📅 Tanggal", value=date.today(), format="DD/MM/YYYY")
-        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan")
+        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan, Pembelian perlengkapan, dll")
         col1, col2 = st.columns(2)
         with col1:
             masuk = st.number_input("💰 Kas Masuk", min_value=0, value=0, step=10000)
         with col2:
             keluar = st.number_input("💸 Kas Keluar", min_value=0, value=0, step=10000)
         
-        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True):
+        # Tombol simpan
+        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True, key="btn_simpan"):
+            
+            # Validasi
             if not keterangan.strip():
                 st.error("❌ Keterangan wajib diisi!")
-            elif masuk > 0 and keluar > 0:
+                return
+            
+            if masuk > 0 and keluar > 0:
                 st.error("❌ Hanya boleh mengisi salah satu: Kas Masuk ATAU Kas Keluar!")
-            elif masuk == 0 and keluar == 0:
-                st.error("❌ Harap isi nominal!")
+                return
+            
+            if masuk == 0 and keluar == 0:
+                st.error("❌ Harap isi nominal Kas Masuk atau Kas Keluar!")
+                return
+            
+            # Proses simpan
+            tgl_str = tgl.strftime("%d-%m-%Y")
+            nominal = float(masuk) if masuk > 0 else float(keluar)
+            
+            # Cek duplikat
+            is_duplicate = False
+            for existing in st.session_state.data:
+                if (existing.get("tanggal") == tgl_str and 
+                    existing.get("keterangan") == keterangan.strip() and
+                    existing.get("masuk", 0) == float(masuk) and
+                    existing.get("keluar", 0) == float(keluar)):
+                    is_duplicate = True
+                    break
+            
+            if is_duplicate:
+                st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
+                return
+            
+            # Buat data baru
+            new_data = {
+                "tanggal": tgl_str,
+                "keterangan": keterangan.strip(),
+                "masuk": float(masuk),
+                "keluar": float(keluar)
+            }
+            
+            # Tambah ke session state
+            st.session_state.data.append(new_data)
+            
+            # Save ke file
+            if save_data(st.session_state.data):
+                # Tampilkan pesan sukses (tanpa balloons untuk menghindari error)
+                st.success(f"""
+                ✅ **TRANSAKSI BERHASIL DISIMPAN!**
+                
+                📅 Tanggal: {tgl_str}
+                📝 Keterangan: {keterangan.strip()}
+                💰 Nominal: {fmt_rp(nominal)}
+                📊 Total data sekarang: **{len(st.session_state.data)}** transaksi
+                """)
+                
+                # Reset form dengan rerun
+                st.rerun()
             else:
-                tgl_str = tgl.strftime("%d-%m-%Y")
-                
-                new_data = {
-                    "tanggal": tgl_str,
-                    "keterangan": keterangan.strip(),
-                    "masuk": float(masuk),
-                    "keluar": float(keluar)
-                }
-                
-                st.session_state.data.append(new_data)
-                if save_data(st.session_state.data):
-                    st.success(f"✅ Transaksi berhasil disimpan! Total data: {len(st.session_state.data)}")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error("❌ Gagal menyimpan data!")
+                st.error("❌ Gagal menyimpan data ke file!")
 
 # ==================== DATA TABLE DENGAN BACKUP EXCEL ====================
 
