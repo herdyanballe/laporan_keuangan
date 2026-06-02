@@ -202,13 +202,56 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     
     story = []
     
-    # Header
-    story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-    story.append(Paragraph(judul_periode, style_sub))
-    story.append(Paragraph("GKJ BEKASI", style_sub))
+    # ========== HEADER DENGAN LOGO ==========
+    # Cek logo di beberapa kemungkinan path
+    logo_paths = ["logo.png", "logo.jpg", "logo.jpeg", "logo-gkj.png", "logo-gkj.jpg"]
+    logo_found = None
+    
+    for path in logo_paths:
+        if os.path.exists(path):
+            logo_found = path
+            break
+    
+    if logo_found:
+        try:
+            # Load dan resize logo
+            logo = RLImage(logo_found, width=2.2*cm, height=2.2*cm, kind='proportional')
+            
+            # Buat header dengan 2 kolom: logo di kiri, teks di kanan
+            header_data = [[
+                logo,
+                [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
+                 Paragraph(judul_periode, style_sub),
+                 Paragraph("GKJ BEKASI", style_sub)]
+            ]]
+            
+            header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
+            header_tbl.setStyle(TableStyle([
+                ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+                ("ALIGN", (0,0), (0,0), "CENTER"),
+                ("ALIGN", (1,0), (1,0), "CENTER"),
+                ("LEFTPADDING", (0,0), (-1,-1), 0),
+                ("RIGHTPADDING", (0,0), (-1,-1), 0),
+                ("TOPPADDING", (0,0), (-1,-1), 0),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+            ]))
+            story.append(header_tbl)
+            
+        except Exception as e:
+            # Jika gagal load logo, tampilkan teks saja
+            print(f"Logo error: {e}")
+            story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+            story.append(Paragraph(judul_periode, style_sub))
+            story.append(Paragraph("GKJ BEKASI", style_sub))
+    else:
+        # Tanpa logo, tampilkan teks saja
+        story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+        story.append(Paragraph(judul_periode, style_sub))
+        story.append(Paragraph("GKJ BEKASI", style_sub))
+    
     story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
     
-    # Table data
+    # ========== TABLE DATA ==========
     table_data = [["No", "Tgl", "Keterangan", "Masuk", "Keluar", "Saldo"]]
     
     if tgl_awal:
@@ -262,6 +305,7 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     tbl.setStyle(tbl_style)
     story.append(tbl)
     
+    # ========== FOOTER ==========
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     tgl_cetak = datetime.now().strftime("%d %B %Y %H:%M")
@@ -273,7 +317,6 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
         pdf_data = f.read()
     os.unlink(temp_file.name)
     return pdf_data
-
 # ==================== KOMPONEN DASHBOARD ====================
 
 def show_metric_cards():
