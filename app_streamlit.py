@@ -734,7 +734,7 @@ def show_operational_insights():
             """, unsafe_allow_html=True)
         else:
             st.info("Belum ada data transaksi")
-
+###ubah mulai di sini
 def show_transaksi_form():
     """Form Input Transaksi dengan pencegahan double input"""
     with st.expander("➕ Tambah Transaksi Baru", expanded=False):
@@ -746,39 +746,61 @@ def show_transaksi_form():
         with col2:
             keluar = st.number_input("💸 Kas Keluar", min_value=0, value=0, step=10000)
         
+        # Tombol simpan
         if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True, key="btn_simpan"):
+            
+            # Validasi
             if not keterangan.strip():
                 st.error("❌ Keterangan wajib diisi!")
-            elif masuk > 0 and keluar > 0:
+                return
+            
+            if masuk > 0 and keluar > 0:
                 st.error("❌ Hanya boleh mengisi salah satu: Kas Masuk ATAU Kas Keluar!")
-            elif masuk == 0 and keluar == 0:
+                return
+            
+            if masuk == 0 and keluar == 0:
                 st.error("❌ Harap isi nominal Kas Masuk atau Kas Keluar!")
-            else:
-                tgl_str = tgl.strftime("%d-%m-%Y")
-                
-                is_duplicate = False
-                for existing in st.session_state.data:
-                    if (existing.get("tanggal") == tgl_str and 
-                        existing.get("keterangan") == keterangan.strip() and
-                        existing.get("masuk", 0) == float(masuk) and
-                        existing.get("keluar", 0) == float(keluar)):
-                        is_duplicate = True
-                        break
-                
-                if is_duplicate:
-                    st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
-                else:
-                    new_data = {
-                        "tanggal": tgl_str,
-                        "keterangan": keterangan.strip(),
-                        "masuk": float(masuk),
-                        "keluar": float(keluar)
-                    }
-                    st.session_state.data.append(new_data)
-                    save_data(st.session_state.data)
-                    st.success(f"✅ Transaksi berhasil disimpan!\n\n📅 {tgl_str}\n📝 {keterangan}\n💰 {fmt_rp(masuk if masuk > 0 else keluar)}")
-                    st.balloons()
-                    st.rerun()
+                return
+            
+            # Proses simpan
+            tgl_str = tgl.strftime("%d-%m-%Y")
+            nominal = float(masuk) if masuk > 0 else float(keluar)
+            
+            # Cek duplikat (opsional, bisa dihilangkan dulu untuk testing)
+            is_duplicate = False
+            for existing in st.session_state.data:
+                if (existing.get("tanggal") == tgl_str and 
+                    existing.get("keterangan") == keterangan.strip() and
+                    existing.get("masuk", 0) == float(masuk) and
+                    existing.get("keluar", 0) == float(keluar)):
+                    is_duplicate = True
+                    break
+            
+            if is_duplicate:
+                st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
+                return
+            
+            # Buat data baru
+            new_data = {
+                "tanggal": tgl_str,
+                "keterangan": keterangan.strip(),
+                "masuk": float(masuk),
+                "keluar": float(keluar)
+            }
+            
+            # Tambah ke session state
+            st.session_state.data.append(new_data)
+            
+            # Save ke file
+            save_data(st.session_state.data)
+            
+            # Tampilkan pesan sukses
+            st.success(f"✅ Transaksi berhasil disimpan!\n\n📅 {tgl_str}\n📝 {keterangan}\n💰 {fmt_rp(nominal)}")
+            st.balloons()
+            
+            # Optional: Reset form (tidak pakai rerun)
+            # st.rerun()  <- HAPUS baris ini!
+                    ####hapus sampai sini
 
 def show_data_table():
     """Tampilan Data Transaksi dengan Edit dan Hapus"""
