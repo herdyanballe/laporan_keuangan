@@ -1,5 +1,5 @@
 """
-Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Final
+Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Mobile Optimized
 Fitur: Dashboard interaktif, Edit/Hapus Transaksi, Backup Excel, Export PDF
 """
 
@@ -25,14 +25,19 @@ import base64
 st.set_page_config(
     page_title="Kas Narogong",
     page_icon="⛪",
-    layout="wide",
+    layout="centered",  # Mobile friendly: centered layout
     initial_sidebar_state="auto"
 )
 
-# Custom CSS untuk tampilan premium
+# Custom CSS untuk tampilan premium dan MOBILE FRIENDLY
 st.markdown("""
 <style>
-    .main { background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); }
+    /* ========== GLOBAL STYLING ========== */
+    .main {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+    }
+    
+    /* ========== CARD STYLING ========== */
     .metric-card {
         background: white;
         border-radius: 20px;
@@ -46,6 +51,8 @@ st.markdown("""
     .metric-change { font-size: 12px; margin-top: 8px; }
     .positive { color: #28a745; }
     .negative { color: #dc3545; }
+    
+    /* ========== HEADER STYLING ========== */
     .main-header {
         background: linear-gradient(135deg, #1F4E79 0%, #2E6DA4 100%);
         border-radius: 20px;
@@ -55,12 +62,105 @@ st.markdown("""
     }
     .main-header h1 { margin: 0; font-size: 28px; }
     .main-header p { margin: 10px 0 0 0; opacity: 0.9; }
-    .stButton > button { border-radius: 12px; font-weight: 500; transition: all 0.3s ease; }
-    .stButton > button:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    
+    /* ========== BUTTON STYLING ========== */
+    .stButton > button {
+        border-radius: 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* ========== DIVIDER ========== */
     hr { margin: 30px 0; border: none; height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); }
+    
+    /* ========== MOBILE OPTIMIZATION ========== */
     @media (max-width: 768px) {
-        .metric-value { font-size: 24px; }
-        .main-header h1 { font-size: 22px; }
+        /* Perkecil font di card */
+        .metric-value {
+            font-size: 20px !important;
+        }
+        .metric-title {
+            font-size: 11px !important;
+        }
+        .main-header h1 {
+            font-size: 18px !important;
+        }
+        .main-header p {
+            font-size: 10px !important;
+        }
+        
+        /* Buat card lebih rapat di mobile */
+        .metric-card {
+            padding: 12px !important;
+        }
+        
+        /* Header padding lebih kecil */
+        .main-header {
+            padding: 15px !important;
+        }
+        
+        /* Tombol lebih besar untuk jari */
+        .stButton > button {
+            padding: 10px !important;
+            font-size: 14px !important;
+            min-height: 44px !important;
+        }
+        
+        /* Input field lebih besar */
+        input, textarea, .stTextInput > div > div > input {
+            font-size: 16px !important;
+            min-height: 44px !important;
+        }
+        
+        /* Selectbox lebih besar */
+        .stSelectbox > div > div {
+            min-height: 44px !important;
+        }
+        
+        /* Number input lebih besar */
+        .stNumberInput > div > div > input {
+            font-size: 16px !important;
+            min-height: 44px !important;
+        }
+        
+        /* Tabel - izinkan scroll horizontal */
+        .stDataFrame {
+            overflow-x: auto !important;
+        }
+        
+        /* Kurangi margin antar elemen */
+        .block-container {
+            padding: 0.5rem !important;
+        }
+        
+        /* Sidebar lebih kecil di mobile */
+        .css-1d391kg {
+            width: 250px !important;
+        }
+    }
+    
+    /* ========== TAMBAHAN UNTUK IPHONE ========== */
+    @media (max-width: 480px) {
+        .metric-value {
+            font-size: 16px !important;
+        }
+        .stButton > button {
+            font-size: 12px !important;
+        }
+    }
+    
+    /* ========== TABLE SCROLL MOBILE ========== */
+    .stDataFrame {
+        overflow-x: auto !important;
+        display: block !important;
+        white-space: nowrap !important;
+    }
+    .stDataFrame table {
+        min-width: 600px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -317,6 +417,7 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
         pdf_data = f.read()
     os.unlink(temp_file.name)
     return pdf_data
+
 # ==================== KOMPONEN DASHBOARD ====================
 
 def show_metric_cards():
@@ -382,7 +483,12 @@ def show_trend_chart():
         fig = go.Figure()
         fig.add_trace(go.Bar(name='Pemasukan', x=months, y=masuk_values, marker_color='#28a745'))
         fig.add_trace(go.Bar(name='Pengeluaran', x=months, y=keluar_values, marker_color='#dc3545'))
-        fig.update_layout(barmode='group', height=450, template='plotly_white')
+        fig.update_layout(
+            barmode='group', 
+            height=350,  # Lebih pendek untuk mobile
+            template='plotly_white',
+            margin=dict(l=30, r=30, t=40, b=20)
+        )
         fig.update_yaxes(tickformat=',.0f')
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -429,7 +535,7 @@ def show_category_breakdown():
         if masuk_data:
             fig_pie = px.pie(values=list(masuk_data.values()), names=list(masuk_data.keys()), 
                             title="Pemasukan per Kategori", hole=0.4)
-            fig_pie.update_layout(height=400)
+            fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig_pie, use_container_width=True)
     
     with col2:
@@ -437,83 +543,44 @@ def show_category_breakdown():
         if keluar_data:
             fig_pie = px.pie(values=list(keluar_data.values()), names=list(keluar_data.keys()), 
                             title="Pengeluaran per Kategori", hole=0.4)
-            fig_pie.update_layout(height=400)
+            fig_pie.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig_pie, use_container_width=True)
 
 # ==================== FORM INPUT ====================
 
 def show_transaksi_form():
-    """Form Input Transaksi dengan pencegahan double input"""
     with st.expander("➕ Tambah Transaksi Baru", expanded=False):
         tgl = st.date_input("📅 Tanggal", value=date.today(), format="DD/MM/YYYY")
-        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan, Pembelian perlengkapan, dll")
+        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan")
         col1, col2 = st.columns(2)
         with col1:
             masuk = st.number_input("💰 Kas Masuk", min_value=0, value=0, step=10000)
         with col2:
             keluar = st.number_input("💸 Kas Keluar", min_value=0, value=0, step=10000)
         
-        # Tombol simpan
-        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True, key="btn_simpan"):
-            
-            # Validasi
+        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True):
             if not keterangan.strip():
                 st.error("❌ Keterangan wajib diisi!")
-                return
-            
-            if masuk > 0 and keluar > 0:
+            elif masuk > 0 and keluar > 0:
                 st.error("❌ Hanya boleh mengisi salah satu: Kas Masuk ATAU Kas Keluar!")
-                return
-            
-            if masuk == 0 and keluar == 0:
-                st.error("❌ Harap isi nominal Kas Masuk atau Kas Keluar!")
-                return
-            
-            # Proses simpan
-            tgl_str = tgl.strftime("%d-%m-%Y")
-            nominal = float(masuk) if masuk > 0 else float(keluar)
-            
-            # Cek duplikat
-            is_duplicate = False
-            for existing in st.session_state.data:
-                if (existing.get("tanggal") == tgl_str and 
-                    existing.get("keterangan") == keterangan.strip() and
-                    existing.get("masuk", 0) == float(masuk) and
-                    existing.get("keluar", 0) == float(keluar)):
-                    is_duplicate = True
-                    break
-            
-            if is_duplicate:
-                st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
-                return
-            
-            # Buat data baru
-            new_data = {
-                "tanggal": tgl_str,
-                "keterangan": keterangan.strip(),
-                "masuk": float(masuk),
-                "keluar": float(keluar)
-            }
-            
-            # Tambah ke session state
-            st.session_state.data.append(new_data)
-            
-            # Save ke file
-            if save_data(st.session_state.data):
-                # Tampilkan pesan sukses (tanpa balloons untuk menghindari error)
-                st.success(f"""
-                ✅ **TRANSAKSI BERHASIL DISIMPAN!**
-                
-                📅 Tanggal: {tgl_str}
-                📝 Keterangan: {keterangan.strip()}
-                💰 Nominal: {fmt_rp(nominal)}
-                📊 Total data sekarang: **{len(st.session_state.data)}** transaksi
-                """)
-                
-                # Reset form dengan rerun
-                st.rerun()
+            elif masuk == 0 and keluar == 0:
+                st.error("❌ Harap isi nominal!")
             else:
-                st.error("❌ Gagal menyimpan data ke file!")
+                tgl_str = tgl.strftime("%d-%m-%Y")
+                
+                new_data = {
+                    "tanggal": tgl_str,
+                    "keterangan": keterangan.strip(),
+                    "masuk": float(masuk),
+                    "keluar": float(keluar)
+                }
+                
+                st.session_state.data.append(new_data)
+                if save_data(st.session_state.data):
+                    st.success(f"✅ Transaksi berhasil disimpan! Total data: {len(st.session_state.data)}")
+                    st.rerun()
+                else:
+                    st.error("❌ Gagal menyimpan data!")
 
 # ==================== DATA TABLE DENGAN BACKUP EXCEL ====================
 
@@ -705,7 +772,7 @@ def show_data_table():
         if st.session_state.get('delete_mode', False):
             st.warning("⚠️ Apakah Anda yakin ingin menghapus transaksi ini?")
             delete_data = st.session_state.delete_data
-            st.info(f"📅 {delete_data.get('tanggal')} | 📝 {delete_data.get('keterangan')} | 💰 {fmt_rp(delete_data.get('masuk', 0)) if delete_data.get('masuk', 0) else fmt_rp(delete_data.get('keluar', 0))}")
+            st.info(f"📅 {delete_data.get('tanggal')} | 📝 {delete_data.get('keterangan')}")
             
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
