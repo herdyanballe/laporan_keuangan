@@ -1,6 +1,6 @@
 """
-Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Premium
-Fitur: Dashboard interaktif, Chart modern, Filter dinamis, Mobile Friendly
+Aplikasi Laporan Keuangan Kas Kelompok Narogong - Versi Final
+Fitur: Dashboard interaktif, Edit/Hapus Transaksi, Backup Excel, Export PDF
 """
 
 import streamlit as st
@@ -19,7 +19,6 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 import tempfile
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import base64
 
 # ==================== KONFIGURASI HALAMAN ====================
@@ -33,12 +32,7 @@ st.set_page_config(
 # Custom CSS untuk tampilan premium
 st.markdown("""
 <style>
-    /* Global styling */
-    .main {
-        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
-    }
-    
-    /* Card styling */
+    .main { background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%); }
     .metric-card {
         background: white;
         border-radius: 20px;
@@ -46,38 +40,12 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         transition: transform 0.3s ease;
     }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .metric-title {
-        font-size: 14px;
-        color: #6c757d;
-        letter-spacing: 1px;
-        margin-bottom: 10px;
-    }
-    
-    .metric-value {
-        font-size: 32px;
-        font-weight: bold;
-        color: #1F4E79;
-    }
-    
-    .metric-change {
-        font-size: 12px;
-        margin-top: 8px;
-    }
-    
-    .positive {
-        color: #28a745;
-    }
-    
-    .negative {
-        color: #dc3545;
-    }
-    
-    /* Header styling */
+    .metric-card:hover { transform: translateY(-5px); }
+    .metric-title { font-size: 14px; color: #6c757d; letter-spacing: 1px; margin-bottom: 10px; }
+    .metric-value { font-size: 32px; font-weight: bold; color: #1F4E79; }
+    .metric-change { font-size: 12px; margin-top: 8px; }
+    .positive { color: #28a745; }
+    .negative { color: #dc3545; }
     .main-header {
         background: linear-gradient(135deg, #1F4E79 0%, #2E6DA4 100%);
         border-radius: 20px;
@@ -85,57 +53,14 @@ st.markdown("""
         margin-bottom: 30px;
         color: white;
     }
-    
-    .main-header h1 {
-        margin: 0;
-        font-size: 28px;
-    }
-    
-    .main-header p {
-        margin: 10px 0 0 0;
-        opacity: 0.9;
-    }
-    
-    /* Table styling */
-    .dataframe {
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        border-radius: 12px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    /* Divider styling */
-    hr {
-        margin: 30px 0;
-        border: none;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #ccc, transparent);
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #1F4E79 0%, #2E6DA4 100%);
-    }
-    
-    /* Responsive */
+    .main-header h1 { margin: 0; font-size: 28px; }
+    .main-header p { margin: 10px 0 0 0; opacity: 0.9; }
+    .stButton > button { border-radius: 12px; font-weight: 500; transition: all 0.3s ease; }
+    .stButton > button:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    hr { margin: 30px 0; border: none; height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); }
     @media (max-width: 768px) {
-        .metric-value {
-            font-size: 24px;
-        }
-        .main-header h1 {
-            font-size: 22px;
-        }
+        .metric-value { font-size: 24px; }
+        .main-header h1 { font-size: 22px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -180,8 +105,16 @@ def load_data():
     return []
 
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """Menyimpan data ke file JSON - LANGSUNG UPDATE"""
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+        print(f"✅ Data saved: {len(data)} transactions")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving data: {e}")
+        return False
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -269,37 +202,10 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     
     story = []
     
-    # Header dengan logo
-    logo_path = config.get("logo_path", "")
-    possible_logo_paths = [logo_path, "logo.png", "logo.jpg", "logo.jpeg"]
-    logo_found = None
-    for path in possible_logo_paths:
-        if path and os.path.exists(path):
-            logo_found = path
-            break
-    
-    if logo_found:
-        try:
-            logo = RLImage(logo_found, width=2.2*cm, height=2.2*cm, kind='proportional')
-            header_data = [[logo, [Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title),
-                                    Paragraph(judul_periode, style_sub),
-                                    Paragraph("GKJ BEKASI", style_sub)]]]
-            header_tbl = Table(header_data, colWidths=[2.5*cm, 12*cm])
-            header_tbl.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-                                            ("ALIGN", (0,0), (0,0), "CENTER"),
-                                            ("ALIGN", (1,0), (1,0), "CENTER"),
-                                            ("LEFTPADDING", (0,0), (-1,-1), 0),
-                                            ("RIGHTPADDING", (0,0), (-1,-1), 0)]))
-            story.append(header_tbl)
-        except:
-            story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-            story.append(Paragraph(judul_periode, style_sub))
-            story.append(Paragraph("GKJ BEKASI", style_sub))
-    else:
-        story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
-        story.append(Paragraph(judul_periode, style_sub))
-        story.append(Paragraph("GKJ BEKASI", style_sub))
-    
+    # Header
+    story.append(Paragraph(f"LAPORAN KAS {nama_kel.upper()}", style_title))
+    story.append(Paragraph(judul_periode, style_sub))
+    story.append(Paragraph("GKJ BEKASI", style_sub))
     story.append(HRFlowable(width="100%", thickness=2, color=navy, spaceAfter=8))
     
     # Table data
@@ -356,7 +262,6 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     tbl.setStyle(tbl_style)
     story.append(tbl)
     
-    # Footer
     story.append(Spacer(1, 0.5*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
     tgl_cetak = datetime.now().strftime("%d %B %Y %H:%M")
@@ -369,27 +274,14 @@ def export_pdf(data, rows, config, tgl_awal=None, tgl_akhir=None):
     os.unlink(temp_file.name)
     return pdf_data
 
-# ==================== KOMPONEN DASHBOARD PREMIUM ====================
+# ==================== KOMPONEN DASHBOARD ====================
 
 def show_metric_cards():
-    """Menampilkan metric cards seperti dashboard profesional"""
-    
     today = date.today()
     saldo_hari_ini = get_saldo_hari_ini(st.session_state.data)
     total_masuk = sum(r.get("masuk", 0) for r in st.session_state.data)
     total_keluar = sum(r.get("keluar", 0) for r in st.session_state.data)
     
-    # Hitung persentase perubahan (dari bulan lalu)
-    current_month = today.month
-    current_year = today.year
-    last_month_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
-                       parse_tgl(r.get("tanggal", "")).month == current_month - 1 and
-                       parse_tgl(r.get("tanggal", "")).year == current_year]
-    last_month_masuk = sum(r.get("masuk", 0) for r in last_month_data)
-    
-    perubahan = ((total_masuk - last_month_masuk) / last_month_masuk * 100) if last_month_masuk > 0 else 0
-    
-    # Row 1: 4 cards utama
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -406,9 +298,6 @@ def show_metric_cards():
         <div class="metric-card">
             <div class="metric-title">💰 SALDO HARI INI</div>
             <div class="metric-value">{fmt_rp(saldo_hari_ini)}</div>
-            <div class="metric-change {'positive' if saldo_hari_ini >= 0 else 'negative'}">
-                {'▲' if saldo_hari_ini >= 0 else '▼'} Saldo {fmt_rp(abs(saldo_hari_ini))}
-            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -417,9 +306,6 @@ def show_metric_cards():
         <div class="metric-card">
             <div class="metric-title">📈 TOTAL PEMASUKAN</div>
             <div class="metric-value">{fmt_rp(total_masuk)}</div>
-            <div class="metric-change {'positive' if perubahan >= 0 else 'negative'}">
-                {'▲' if perubahan >= 0 else '▼'} {abs(perubahan):.1f}% dari bulan lalu
-            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -428,17 +314,12 @@ def show_metric_cards():
         <div class="metric-card">
             <div class="metric-title">📉 TOTAL PENGELUARAN</div>
             <div class="metric-value">{fmt_rp(total_keluar)}</div>
-            <div class="metric-change">Rasio: {(total_keluar/total_masuk*100) if total_masuk > 0 else 0:.1f}% dari pemasukan</div>
         </div>
         """, unsafe_allow_html=True)
 
 def show_trend_chart():
-    """Menampilkan grafik trend pemasukan vs pengeluaran"""
+    st.markdown("### 📈 Trend Pemasukan vs Pengeluaran")
     
-    st.markdown("### 📈 How are we trending?")
-    st.caption("Track revenue and profit over time with smart aggregation")
-    
-    # Siapkan data per bulan
     monthly_data = {}
     for r in st.session_state.data:
         tgl = parse_tgl(r.get("tanggal", ""))
@@ -450,87 +331,28 @@ def show_trend_chart():
             monthly_data[key]["keluar"] += r.get("keluar", 0)
     
     if monthly_data:
-        # Urutkan berdasarkan tahun dan bulan
         sorted_items = sorted(monthly_data.items(), key=lambda x: (x[1]["tahun"], x[1]["bulan_num"]))
         months = [item[0] for item in sorted_items]
         masuk_values = [item[1]["masuk"] for item in sorted_items]
         keluar_values = [item[1]["keluar"] for item in sorted_items]
         
-        # Buat chart dengan plotly
         fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            name='Pemasukan',
-            x=months,
-            y=masuk_values,
-            marker_color='#28a745',
-            marker_line_color='#1f8b4c',
-            marker_line_width=1,
-            opacity=0.9,
-            text=[fmt_rp(v) for v in masuk_values],
-            textposition='outside',
-            textfont=dict(size=10)
-        ))
-        
-        fig.add_trace(go.Bar(
-            name='Pengeluaran',
-            x=months,
-            y=keluar_values,
-            marker_color='#dc3545',
-            marker_line_color='#b02a37',
-            marker_line_width=1,
-            opacity=0.9,
-            text=[fmt_rp(v) for v in keluar_values],
-            textposition='outside',
-            textfont=dict(size=10)
-        ))
-        
-        fig.update_layout(
-            barmode='group',
-            height=450,
-            template='plotly_white',
-            hovermode='x unified',
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            margin=dict(l=40, r=40, t=60, b=40),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        fig.update_yaxes(
-            title="Jumlah (Rp)",
-            tickformat=',.0f',
-            gridcolor='#e9ecef',
-            gridwidth=1
-        )
-        
-        fig.update_xaxes(
-            title="Bulan",
-            gridcolor='#e9ecef',
-            gridwidth=1
-        )
-        
+        fig.add_trace(go.Bar(name='Pemasukan', x=months, y=masuk_values, marker_color='#28a745'))
+        fig.add_trace(go.Bar(name='Pengeluaran', x=months, y=keluar_values, marker_color='#dc3545'))
+        fig.update_layout(barmode='group', height=450, template='plotly_white')
+        fig.update_yaxes(tickformat=',.0f')
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Belum ada data untuk ditampilkan")
+        st.info("Belum ada data")
 
 def show_category_breakdown():
-    """Menampilkan breakdown per kategori"""
+    st.markdown("### 📊 Kategori Transaksi")
     
-    st.markdown("### 📊 Where & What?")
-    st.caption("Break down performance by category to see where revenue and margins concentrate")
-    
-    # Kumpulkan data per kategori (menggunakan kata kunci dari keterangan)
     categories = {
         "Persembahan": ["persembahan", "iuran", "sumbangan", "dana"],
         "Kesehatan": ["subsidi kesehatan", "pk orang sakit", "pk kelahiran", "pk sripahan"],
         "Operasional": ["fc", "foto copy", "liturgi", "ibadah", "sarasehan"],
-        "Sosial": ["duka", "sumbangan", "bantuan"],
+        "Sosial": ["duka", "bantuan"],
         "Lainnya": []
     }
     
@@ -557,259 +379,72 @@ def show_category_breakdown():
             category_data["Lainnya"]["masuk"] += masuk
             category_data["Lainnya"]["keluar"] += keluar
     
-    # Buat 2 kolom untuk chart
     col1, col2 = st.columns(2)
     
     with col1:
-        # Pie chart pemasukan per kategori
         masuk_data = {k: v["masuk"] for k, v in category_data.items() if v["masuk"] > 0}
         if masuk_data:
-            fig_pie = px.pie(
-                values=list(masuk_data.values()),
-                names=list(masuk_data.keys()),
-                title="Pemasukan per Kategori",
-                color_discrete_sequence=px.colors.qualitative.Set2,
-                hole=0.4
-            )
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            fig_pie.update_layout(height=400, template='plotly_white')
+            fig_pie = px.pie(values=list(masuk_data.values()), names=list(masuk_data.keys()), 
+                            title="Pemasukan per Kategori", hole=0.4)
+            fig_pie.update_layout(height=400)
             st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.info("Belum ada data pemasukan")
     
     with col2:
-        # Pie chart pengeluaran per kategori
         keluar_data = {k: v["keluar"] for k, v in category_data.items() if v["keluar"] > 0}
         if keluar_data:
-            fig_pie = px.pie(
-                values=list(keluar_data.values()),
-                names=list(keluar_data.keys()),
-                title="Pengeluaran per Kategori",
-                color_discrete_sequence=px.colors.qualitative.Set3,
-                hole=0.4
-            )
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            fig_pie.update_layout(height=400, template='plotly_white')
+            fig_pie = px.pie(values=list(keluar_data.values()), names=list(keluar_data.keys()), 
+                            title="Pengeluaran per Kategori", hole=0.4)
+            fig_pie.update_layout(height=400)
             st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.info("Belum ada data pengeluaran")
 
-@st.fragment
-def show_interactive_chart():
-    """Grafik interaktif dengan fragment untuk performa lebih baik"""
-    
-    st.markdown("### 🎯 Deep Dive - Click to Explore")
-    st.caption("Click on data points to see detailed trends")
-    
-    # Siapkan data per bulan
-    monthly_summary = {}
-    for r in st.session_state.data:
-        tgl = parse_tgl(r.get("tanggal", ""))
-        if tgl:
-            key = f"{tgl.year}-{tgl.month:02d}"
-            if key not in monthly_summary:
-                monthly_summary[key] = {
-                    "bulan": BULAN_ID[tgl.month-1],
-                    "tahun": tgl.year,
-                    "masuk": 0,
-                    "keluar": 0,
-                    "profit": 0
-                }
-            monthly_summary[key]["masuk"] += r.get("masuk", 0)
-            monthly_summary[key]["keluar"] += r.get("keluar", 0)
-            monthly_summary[key]["profit"] = monthly_summary[key]["masuk"] - monthly_summary[key]["keluar"]
-    
-    if monthly_summary:
-        df = pd.DataFrame([
-            {
-                "Bulan": v["bulan"],
-                "Tahun": v["tahun"],
-                "Pemasukan": v["masuk"],
-                "Pengeluaran": v["keluar"],
-                "Profit": v["profit"]
-            }
-            for v in monthly_summary.values()
-        ])
-        
-        # Bubble chart
-        fig = go.Figure()
-        
-        fig.add_trace(go.Scatter(
-            x=df["Pemasukan"],
-            y=df["Pengeluaran"],
-            mode='markers+text',
-            marker=dict(
-                size=df["Profit"].abs() / 100000,
-                sizeref=2.*max(df["Profit"].abs()) / (50**2) if df["Profit"].abs().max() > 0 else 1,
-                sizemin=10,
-                color=df["Profit"],
-                colorscale='RdYlGn',
-                showscale=True,
-                colorbar=dict(title="Profit (Rp)")
-            ),
-            text=df["Bulan"],
-            textposition="top center",
-            hoverinfo='text',
-            hovertext=[
-                f"{row['Bulan']} {row['Tahun']}<br>"
-                f"Pemasukan: {fmt_rp(row['Pemasukan'])}<br>"
-                f"Pengeluaran: {fmt_rp(row['Pengeluaran'])}<br>"
-                f"Profit: {fmt_rp(row['Profit'])}"
-                for _, row in df.iterrows()
-            ]
-        ))
-        
-        fig.update_layout(
-            title="Profit Analysis: Size = Profit Margin",
-            xaxis_title="Pemasukan (Rp)",
-            yaxis_title="Pengeluaran (Rp)",
-            height=500,
-            template='plotly_white',
-            hovermode='closest'
-        )
-        
-        fig.update_xaxes(tickformat=',.0f')
-        fig.update_yaxes(tickformat=',.0f')
-        
-        st.plotly_chart(fig, use_container_width=True, key="bubble_chart")
-        
-        st.info("👆 Klik salah satu bubble untuk melihat detail trend bulan tersebut")
-    else:
-        st.info("Belum ada data untuk ditampilkan")
+# ==================== FORM INPUT ====================
 
-def show_operational_insights():
-    """Menampilkan operational insights"""
-    
-    st.markdown("### 📦 Operational Insights")
-    st.caption("Examine transaction patterns and distribution")
-    
-    # Analisis transaksi per hari dalam seminggu
-    day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-    day_data = {day: {"count": 0, "total": 0} for day in day_names}
-    
-    for r in st.session_state.data:
-        tgl = parse_tgl(r.get("tanggal", ""))
-        if tgl:
-            day_idx = tgl.weekday()
-            day_name = day_names[day_idx]
-            day_data[day_name]["count"] += 1
-            day_data[day_name]["total"] += r.get("masuk", 0) + r.get("keluar", 0)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Bar chart frekuensi transaksi per hari
-        fig_bar = go.Figure(data=[
-            go.Bar(
-                x=day_names,
-                y=[day_data[day]["count"] for day in day_names],
-                marker_color='#1F4E79',
-                text=[day_data[day]["count"] for day in day_names],
-                textposition='auto'
-            )
-        ])
-        fig_bar.update_layout(
-            title="Frekuensi Transaksi per Hari",
-            xaxis_title="Hari",
-            yaxis_title="Jumlah Transaksi",
-            height=350,
-            template='plotly_white'
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-    
-    with col2:
-        # Ringkasan distribusi
-        total_transaksi = sum(day_data[day]["count"] for day in day_names)
-        if total_transaksi > 0:
-            busiest_day = max(day_data.items(), key=lambda x: x[1]["count"])
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title">📊 INSIGHT</div>
-                <div class="metric-value">{busiest_day[0]}</div>
-                <div class="metric-change">adalah hari tersibuk dengan {busiest_day[1]['count']} transaksi</div>
-                <hr>
-                <div>💰 Rata-rata nominal transaksi: {fmt_rp(sum(day_data[day]['total'] for day in day_names) / total_transaksi)}</div>
-                <div>📝 Total transaksi: {total_transaksi}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.info("Belum ada data transaksi")
-###ubah mulai di sini
 def show_transaksi_form():
-    """Form Input Transaksi dengan pencegahan double input"""
     with st.expander("➕ Tambah Transaksi Baru", expanded=False):
         tgl = st.date_input("📅 Tanggal", value=date.today(), format="DD/MM/YYYY")
-        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan, Pembelian perlengkapan, dll")
+        keterangan = st.text_input("📝 Keterangan", placeholder="Contoh: Iuran bulanan")
         col1, col2 = st.columns(2)
         with col1:
             masuk = st.number_input("💰 Kas Masuk", min_value=0, value=0, step=10000)
         with col2:
             keluar = st.number_input("💸 Kas Keluar", min_value=0, value=0, step=10000)
         
-        # Tombol simpan
-        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True, key="btn_simpan"):
-            
-            # Validasi
+        if st.button("💾 SIMPAN TRANSAKSI", type="primary", use_container_width=True):
             if not keterangan.strip():
                 st.error("❌ Keterangan wajib diisi!")
-                return
-            
-            if masuk > 0 and keluar > 0:
+            elif masuk > 0 and keluar > 0:
                 st.error("❌ Hanya boleh mengisi salah satu: Kas Masuk ATAU Kas Keluar!")
-                return
-            
-            if masuk == 0 and keluar == 0:
-                st.error("❌ Harap isi nominal Kas Masuk atau Kas Keluar!")
-                return
-            
-            # Proses simpan
-            tgl_str = tgl.strftime("%d-%m-%Y")
-            nominal = float(masuk) if masuk > 0 else float(keluar)
-            
-            # Cek duplikat (opsional, bisa dihilangkan dulu untuk testing)
-            is_duplicate = False
-            for existing in st.session_state.data:
-                if (existing.get("tanggal") == tgl_str and 
-                    existing.get("keterangan") == keterangan.strip() and
-                    existing.get("masuk", 0) == float(masuk) and
-                    existing.get("keluar", 0) == float(keluar)):
-                    is_duplicate = True
-                    break
-            
-            if is_duplicate:
-                st.error("⚠️ Transaksi ini sudah ada! Tidak boleh double input.")
-                return
-            
-            # Buat data baru
-            new_data = {
-                "tanggal": tgl_str,
-                "keterangan": keterangan.strip(),
-                "masuk": float(masuk),
-                "keluar": float(keluar)
-            }
-            
-            # Tambah ke session state
-            st.session_state.data.append(new_data)
-            
-            # Save ke file
-            save_data(st.session_state.data)
-            
-            # Tampilkan pesan sukses
-            st.success(f"✅ Transaksi berhasil disimpan!\n\n📅 {tgl_str}\n📝 {keterangan}\n💰 {fmt_rp(nominal)}")
-            st.balloons()
-            
-            # Optional: Reset form (tidak pakai rerun)
-            # st.rerun()  <- HAPUS baris ini!
-                    ####hapus sampai sini
+            elif masuk == 0 and keluar == 0:
+                st.error("❌ Harap isi nominal!")
+            else:
+                tgl_str = tgl.strftime("%d-%m-%Y")
+                
+                new_data = {
+                    "tanggal": tgl_str,
+                    "keterangan": keterangan.strip(),
+                    "masuk": float(masuk),
+                    "keluar": float(keluar)
+                }
+                
+                st.session_state.data.append(new_data)
+                if save_data(st.session_state.data):
+                    st.success(f"✅ Transaksi berhasil disimpan! Total data: {len(st.session_state.data)}")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error("❌ Gagal menyimpan data!")
+
+# ==================== DATA TABLE DENGAN BACKUP EXCEL ====================
 
 def show_data_table():
-    """Tampilan Data Transaksi dengan Edit dan Hapus"""
+    """Tampilan Data Transaksi dengan Edit, Hapus, dan Backup Excel"""
     st.subheader("📋 Daftar Transaksi")
     
     if not st.session_state.data:
         st.info("📭 Belum ada data. Silakan tambah transaksi baru.")
         return
     
+    # Dapatkan tanggal min dan max dari semua data
     all_dates = [parse_tgl(r.get("tanggal", "")) for r in st.session_state.data if r.get("tanggal")]
     all_dates = [d for d in all_dates if d]
     
@@ -820,13 +455,26 @@ def show_data_table():
     min_date = min(all_dates).date()
     max_date = max(all_dates).date()
     
+    # Filter Rentang Tanggal
     st.markdown("### 📆 Filter Periode")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
-        tgl_awal = st.date_input("📅 Dari Tanggal", value=min_date, min_value=min_date, max_value=max_date, key="tgl_awal")
+        tgl_awal = st.date_input(
+            "📅 Dari Tanggal", 
+            value=min_date, 
+            min_value=min_date, 
+            max_value=max_date, 
+            key="tgl_awal"
+        )
     with col_f2:
-        tgl_akhir = st.date_input("📅 Sampai Tanggal", value=max_date, min_value=min_date, max_value=max_date, key="tgl_akhir")
+        tgl_akhir = st.date_input(
+            "📅 Sampai Tanggal", 
+            value=max_date, 
+            min_value=min_date, 
+            max_value=max_date, 
+            key="tgl_akhir"
+        )
     
     if tgl_awal > tgl_akhir:
         st.error("⚠️ Tanggal 'Dari' tidak boleh lebih besar dari 'Sampai'")
@@ -843,11 +491,16 @@ def show_data_table():
     st.caption(f"📊 Menampilkan {len(rows)} transaksi periode: **{periode_text}**")
     
     if rows:
-        col_pdf, col_spacer = st.columns([1, 3])
-        with col_pdf:
+        # Tiga tombol berjajar: EXPORT PDF, BACKUP EXCEL, (kosong)
+        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+        
+        with col_btn1:
             if st.button("📄 EXPORT PDF", use_container_width=True, key="btn_export"):
                 with st.spinner("📑 Sedang membuat PDF..."):
-                    pdf_data = export_pdf(st.session_state.data, rows, st.session_state.config, tgl_awal_dt, tgl_akhir_dt)
+                    pdf_data = export_pdf(
+                        st.session_state.data, rows, st.session_state.config,
+                        tgl_awal_dt, tgl_akhir_dt
+                    )
                     st.download_button(
                         label="📥 DOWNLOAD PDF",
                         data=pdf_data,
@@ -856,12 +509,47 @@ def show_data_table():
                         key="download_pdf"
                     )
         
+        with col_btn2:
+            if st.button("💾 BACKUP EXCEL", use_container_width=True, key="btn_backup"):
+                with st.spinner("📑 Membuat file backup..."):
+                    try:
+                        # Gunakan data dari session state (yang terbaru)
+                        backup_data = st.session_state.data
+                        df = pd.DataFrame(backup_data)
+                        df_display = pd.DataFrame()
+                        df_display["No"] = range(1, len(df) + 1)
+                        df_display["Tanggal"] = df["tanggal"]
+                        df_display["Keterangan"] = df["keterangan"]
+                        df_display["Kas Masuk"] = df["masuk"].apply(lambda x: fmt_rp(x) if x > 0 else "-")
+                        df_display["Kas Keluar"] = df["keluar"].apply(lambda x: fmt_rp(x) if x > 0 else "-")
+                        
+                        # Simpan ke memory
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            df_display.to_excel(writer, sheet_name="Data Transaksi", index=False)
+                        
+                        excel_data = output.getvalue()
+                        
+                        # Download button
+                        st.download_button(
+                            label="📥 DOWNLOAD EXCEL",
+                            data=excel_data,
+                            file_name=f"backup_transaksi_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="download_excel"
+                        )
+                        st.success(f"✅ Backup {len(backup_data)} transaksi siap!")
+                    except Exception as e:
+                        st.error(f"❌ Gagal backup: {e}")
+        
         st.markdown("### 📝 Data Transaksi")
         
+        # Hitung saldo awal
         before_data = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
                        parse_tgl(r.get("tanggal", "")) < tgl_awal_dt]
         saldo = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
         
+        # Tampilkan setiap baris dengan tombol Edit dan Hapus
         for idx, row in enumerate(rows):
             col1, col2, col3, col4, col5, col6, col7 = st.columns([0.5, 1.2, 3, 1.2, 1.2, 1, 1])
             
@@ -892,6 +580,7 @@ def show_data_table():
             
             st.divider()
         
+        # Modal Edit
         if st.session_state.get('edit_mode', False):
             with st.expander("✏️ EDIT TRANSAKSI", expanded=True):
                 edit_data = st.session_state.edit_data
@@ -907,10 +596,12 @@ def show_data_table():
                 with col_btn1:
                     if st.button("💾 SIMPAN PERUBAHAN", type="primary", use_container_width=True):
                         tgl_str = tgl_edit.strftime("%d-%m-%Y")
+                        # Update data
                         index = st.session_state.edit_index
                         rows_filtered = [r for r in st.session_state.data if parse_tgl(r.get("tanggal", "")) and 
                                         tgl_awal_dt <= parse_tgl(r.get("tanggal", "")) <= tgl_akhir_dt]
                         original_row = rows_filtered[index]
+                        # Cari dan update di data utama
                         for i, item in enumerate(st.session_state.data):
                             if item == original_row:
                                 st.session_state.data[i] = {
@@ -929,6 +620,7 @@ def show_data_table():
                         st.session_state.edit_mode = False
                         st.rerun()
         
+        # Modal Hapus
         if st.session_state.get('delete_mode', False):
             st.warning("⚠️ Apakah Anda yakin ingin menghapus transaksi ini?")
             delete_data = st.session_state.delete_data
@@ -951,6 +643,7 @@ def show_data_table():
                     st.session_state.delete_mode = False
                     st.rerun()
         
+        # Ringkasan
         total_masuk = sum(r.get("masuk", 0) for r in rows)
         total_keluar = sum(r.get("keluar", 0) for r in rows)
         saldo_awal = sum(r.get("masuk", 0) - r.get("keluar", 0) for r in before_data)
@@ -980,26 +673,18 @@ def show_data_table():
         st.warning(f"⚠️ Tidak ada transaksi untuk periode {periode_text}")
 
 def show_charts():
-    """Halaman Charts lengkap"""
     show_trend_chart()
     st.markdown("---")
     show_category_breakdown()
-    st.markdown("---")
-    show_interactive_chart()
-    st.markdown("---")
-    show_operational_insights()
 
 def show_settings():
     st.subheader("⚙️ Pengaturan")
-    
     with st.form("settings"):
         nama = st.text_input("Nama Kelompok", value=st.session_state.config.get("nama_kelompok", "Kelompok Narogong"))
-        
         if st.form_submit_button("💾 Simpan", use_container_width=True):
             st.session_state.config["nama_kelompok"] = nama
             save_config(st.session_state.config)
             st.success("✅ Pengaturan tersimpan!")
-            st.rerun()
 
 # ==================== INISIALISASI ====================
 
@@ -1015,48 +700,19 @@ if 'delete_mode' not in st.session_state:
 # ==================== MAIN APP ====================
 
 def main():
-    # Cek apakah logo GKJ ada
-    logo_gkj_path = "logo-gkj.png"
-    logo_exists = os.path.exists(logo_gkj_path)
+    st.markdown(f"""
+    <div class="main-header">
+        <h1>⛪ {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
+        <p>GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    if logo_exists:
-        with open(logo_gkj_path, "rb") as f:
-            logo_data = base64.b64encode(f.read()).decode()
-        
-        st.markdown(f"""
-        <div class="main-header" style="display: flex; align-items: center; gap: 20px;">
-            <img src="data:image/png;base64,{logo_data}" style="width: 55px; height: 55px; border-radius: 12px; object-fit: cover;">
-            <div>
-                <h1 style="margin: 0;">{st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
-                <p style="margin: 5px 0 0 0;">GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div class="main-header">
-            <h1>⛪ {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')}</h1>
-            <p>GKJ BEKASI • Sistem Laporan Keuangan Kas • Data Real-time</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Sidebar menu
     with st.sidebar:
         st.markdown("### 🧭 NAVIGASI")
-        menu = st.radio(
-            "",
-            ["🏠 DASHBOARD", "➕ INPUT", "📋 DATA", "📊 CHARTS", "⚙️ SETTING"],
-            label_visibility="collapsed"
-        )
+        menu = st.radio("", ["🏠 DASHBOARD", "➕ INPUT", "📋 DATA", "📊 CHARTS", "⚙️ SETTING"], label_visibility="collapsed")
         st.markdown("---")
         st.caption(f"📊 Total Transaksi: **{len(st.session_state.data)}**")
-        
-        if st.session_state.data:
-            st.caption("✅ Data tersimpan")
-        else:
-            st.caption("⚠️ Belum ada data")
     
-    # Routing
     if menu == "🏠 DASHBOARD":
         show_metric_cards()
         st.markdown("---")
@@ -1073,7 +729,7 @@ def main():
         show_settings()
     
     st.markdown("---")
-    st.caption(f"© {datetime.now().year} {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')} • GKJ BEKASI • Laporan Keuangan Kas")
+    st.caption(f"© {datetime.now().year} {st.session_state.config.get('nama_kelompok', 'Kelompok Narogong')} • GKJ BEKASI")
 
 if __name__ == "__main__":
     main()
